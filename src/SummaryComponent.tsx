@@ -100,16 +100,9 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             <div className="summary-area">
                 <Surface background={SurfaceBackground.neutral}>
                     <div className="summary-header">
-                    <div className="summary-title">Calendar Summary</div>
-                    <Button
-                        iconProps={{ iconName: "DoubleChevronRight" }}
-                        onClick={this.props.onTogglePane}
-                        tooltipProps={{ text: "Close pane" }}
-                        ariaLabel="Close pane"
-                        subtle
-                    />
-                </div>
-                <div className="summary-content" ref={this.contentRef}>
+                        <div className="summary-title">Calendar Summary</div>
+                    </div>
+                    <div className="summary-content" ref={this.contentRef}>
                     <Card className="category-card">
                         <div className="category-section">
                             <Observer url={this.props.capacityEventSource.getIterationUrl()}>

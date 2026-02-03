@@ -11,6 +11,7 @@ import { TeamMember } from "azure-devops-extension-api/WebApi/WebApi";
 import * as SDK from "azure-devops-extension-sdk";
 
 import { Button } from "azure-devops-ui/Button";
+import { Checkbox } from "azure-devops-ui/Checkbox";
 import { Dropdown, DropdownExpandableButton } from "azure-devops-ui/Dropdown";
 import { CustomHeader, HeaderTitleArea } from "azure-devops-ui/Header";
 import { IHeaderCommandBarItem, HeaderCommandBar } from "azure-devops-ui/HeaderCommandBar";
@@ -66,6 +67,7 @@ class ExtensionContent extends React.Component {
     selectedStartDate: Date;
     selectedTeamName: string;
     showMonthPicker: ObservableValue<boolean> = new ObservableValue<boolean>(false);
+    sidePanelAnchorElement: ObservableValue<HTMLElement | undefined> = new ObservableValue<HTMLElement | undefined>(undefined);
     teams: ObservableValue<WebApiTeam[]>;
     vsoCapacityEventSource: VSOCapacityEventSource;
 
@@ -144,124 +146,195 @@ class ExtensionContent extends React.Component {
 
     public render(): JSX.Element {
         return (
-            <Page className="flex-grow flex-row">
-                <Observer isPaneOpen={this.isPaneOpen}>
-                    {(props: { isPaneOpen: boolean }) => (
-                        <div className={`flex-column scroll-hidden calendar-area ${props.isPaneOpen ? 'pane-open' : 'pane-closed'}`}>
-                            {/* Top tier: Team selection and primary actions */}
-                            <CustomHeader className="bolt-header-with-commandbar">
-                                <HeaderTitleArea>
-                                    <div style={{ display: "flex", alignItems: "center" }}>
-                                        <Observer teams={this.teams}>
-                                            {(teamProps: { teams: WebApiTeam[] }) => {
-                                                return teamProps.teams.length === 0 ? null : (
-                                                    <Dropdown
-                                                        items={this.getTeamPickerOptions()}
-                                                        onSelect={this.onSelectTeam}
-                                                        placeholder={this.selectedTeamName}
-                                                        renderExpandable={expandableProps => <DropdownExpandableButton {...expandableProps} />}
-                                                        showFilterBox={true}
-                                                        filterPlaceholderText="Filter teams"
-                                                        width={300}
-                                                    />
-                                                );
-                                            }}
-                                        </Observer>
-                                    </div>
-                                </HeaderTitleArea>
-                                <Observer isPaneOpen={this.isPaneOpen}>
-                                    {(paneProps: { isPaneOpen: boolean }) => (
-                                        <HeaderCommandBar
-                                            items={[
-                                                {
-                                                    id: "newItem",
-                                                    important: true,
-                                                    isPrimary: true,
-                                                    onActivate: this.onClickNewItem,
-                                                    text: "New Item",
-                                                    iconProps: { iconName: "Add" }
-                                                },
-                                                ...(!paneProps.isPaneOpen ? [{
-                                                    id: "openPane",
-                                                    important: true,
-                                                    onActivate: () => this.isPaneOpen.value = true,
-                                                    text: "Open",
-                                                    iconProps: { iconName: "DoubleChevronLeft" }
-                                                }] : [])
-                                            ]}
-                                        />
-                                    )}
+            <Page className="flex-grow flex-column">
+                {/* Single header: All controls on one row - spans full width above calendar and panel */}
+                <CustomHeader className="bolt-header-with-commandbar full-width-header">
+                    <HeaderTitleArea>
+                        <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                                <Observer teams={this.teams}>
+                                    {(teamProps: { teams: WebApiTeam[] }) => {
+                                        return teamProps.teams.length === 0 ? null : (
+                                            <Dropdown
+                                                items={this.getTeamPickerOptions()}
+                                                onSelect={this.onSelectTeam}
+                                                placeholder={this.selectedTeamName}
+                                                renderExpandable={expandableProps => <DropdownExpandableButton {...expandableProps} />}
+                                                showFilterBox={true}
+                                                filterPlaceholderText="Filter teams"
+                                                width={280}
+                                            />
+                                        );
+                                    }}
                                 </Observer>
-                            </CustomHeader>
-                            {/* Lower tier: Calendar navigation */}
-                            <CustomHeader className="bolt-header-with-commandbar">
-                                <HeaderTitleArea>
-                                    <div style={{ display: "flex", alignItems: "center" }}>
-                                        <Observer currentMonthAndYear={this.currentMonthAndYear}>
-                                            {(dateProps: { currentMonthAndYear: MonthAndYear }) => {
-                                                return (
-                                                    <Dropdown
-                                                        items={this.getMonthPickerOptions()}
-                                                        key={dateProps.currentMonthAndYear.month}
-                                                        onSelect={this.onSelectMonthYear}
-                                                        placeholder={monthAndYearToString(dateProps.currentMonthAndYear)}
-                                                        renderExpandable={expandableProps => (
-                                                            <DropdownExpandableButton {...expandableProps} />
-                                                        )}
-                                                        width={200}
-                                                    />
-                                                );
-                                            }}
-                                        </Observer>
-                                    </div>
-                                </HeaderTitleArea>
-                                <HeaderCommandBar items={this.commandBarItems} />
-                            </CustomHeader>
-                    <Observer display={this.displayCalendar}>
-                        {(dispProps: { display: boolean }) => {
-                            return dispProps.display ? (
-                                <div className="calendar-component">
-                                    <FullCalendar
-                                        defaultView="dayGridMonth"
-                                        editable={true}
-                                        eventClick={this.onEventClick}
-                                        eventDrop={this.onEventDrop}
-                                        eventRender={this.eventRender}
-                                        eventResize={this.onEventResize}
-                                        eventOrder="order,start,-duration,allDay,title"
-                                        eventSources={[
-                                            { events: this.freeFormEventSource.getEvents },
-                                            { events: this.vsoCapacityEventSource.getEvents }
-                                        ]}
-                                        firstDay={localeData(navigator.language).firstDayOfWeek()}
-                                        header={false}
-                                        height={this.getCalendarHeight()}
-                                        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                                        ref={this.calendarComponentRef}
-                                        select={this.onSelectCalendarDates}
-                                        selectable={true}
-                                        eventLimit={true}
+                                <Button
+                                    text="Today"
+                                    onClick={() => {
+                                        if (this.calendarComponentRef.current) {
+                                            this.getCalendarApi().today();
+                                            this.currentMonthAndYear.value = {
+                                                month: new Date().getMonth(),
+                                                year: new Date().getFullYear()
+                                            };
+                                        }
+                                    }}
+                                />
+                                <Observer currentMonthAndYear={this.currentMonthAndYear}>
+                                    {(dateProps: { currentMonthAndYear: MonthAndYear }) => {
+                                        return (
+                                            <Dropdown
+                                                items={this.getMonthPickerOptions()}
+                                                key={dateProps.currentMonthAndYear.month}
+                                                onSelect={this.onSelectMonthYear}
+                                                placeholder={monthAndYearToString(dateProps.currentMonthAndYear)}
+                                                renderExpandable={expandableProps => (
+                                                    <DropdownExpandableButton {...expandableProps} />
+                                                )}
+                                                width={180}
+                                            />
+                                        );
+                                    }}
+                                </Observer>
+                                <div className="nav-button-group">
+                                    <Button
+                                        iconProps={{ iconName: "ChevronLeft" }}
+                                        ariaLabel="Previous month"
+                                        subtle
+                                        tooltipProps={{ text: "Previous month" }}
+                                        onClick={() => {
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().prev();
+                                                this.currentMonthAndYear.value = this.calcMonths(this.currentMonthAndYear.value, -1);
+                                            }
+                                        }}
                                     />
-                                    </div>
-                                ) : null;
-                            }}
-                        </Observer>
-                    </div>
-                    )}
-                </Observer>
-                <Observer isPaneOpen={this.isPaneOpen}>
-                    {(props: { isPaneOpen: boolean }) => (
-                        props.isPaneOpen ? (
-                            <SummaryComponent 
-                                capacityEventSource={this.vsoCapacityEventSource} 
-                                freeFormEventSource={this.freeFormEventSource}
-                                onEditDaysOff={this.onEditDaysOff}
-                                onEditEvent={this.onEditFreeFormEvent}
-                                onTogglePane={() => this.isPaneOpen.value = !this.isPaneOpen.value}
+                                    <Button
+                                        iconProps={{ iconName: "ChevronRight" }}
+                                        ariaLabel="Next month"
+                                        subtle
+                                        tooltipProps={{ text: "Next month" }}
+                                        onClick={() => {
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().next();
+                                                this.currentMonthAndYear.value = this.calcMonths(this.currentMonthAndYear.value, 1);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "8px" }}>
+                                <Button
+                                    text="New Item"
+                                    iconProps={{ iconName: "Add" }}
+                                    primary={true}
+                                    onClick={this.onClickNewItem}
+                                />
+                            </div>
+                        </div>
+                    </HeaderTitleArea>
+                </CustomHeader>
+                {/* Side panel options row */}
+                <div className="side-panel-options-row">
+                    <Observer isPaneOpen={this.isPaneOpen}>
+                        {(props: { isPaneOpen: boolean }) => {
+                            return (
+                                <Button
+                                    onClick={(e) => {
+                                        this.sidePanelAnchorElement.value = e.currentTarget as HTMLElement;
+                                    }}
+                                    iconProps={{ iconName: "Equalizer" }}
+                                    ariaLabel="Side pane options"
+                                    subtle
+                                />
+                            );
+                        }}
+                    </Observer>
+                </div>
+                {/* Contextual menu for side panel options */}
+                <Observer sidePanelAnchorElement={this.sidePanelAnchorElement} isPaneOpen={this.isPaneOpen}>
+                    {(props: { sidePanelAnchorElement: HTMLElement | undefined; isPaneOpen: boolean }) => {
+                        return props.sidePanelAnchorElement ? (
+                            <ContextualMenu
+                                anchorElement={props.sidePanelAnchorElement}
+                                anchorOffset={{ horizontal: 0, vertical: 0 }}
+                                anchorOrigin={{ horizontal: Location.start, vertical: Location.end }}
+                                menuProps={{
+                                    id: "side-panel-options",
+                                    items: [
+                                        {
+                                            id: "details",
+                                            text: "Details",
+                                            iconProps: { render: () => <Checkbox checked={props.isPaneOpen} onChange={() => {}} /> },
+                                            onActivate: () => {
+                                                this.isPaneOpen.value = true;
+                                                this.sidePanelAnchorElement.value = undefined;
+                                            }
+                                        },
+                                        {
+                                            id: "off",
+                                            text: "Off",
+                                            iconProps: { render: () => <Checkbox checked={!props.isPaneOpen} onChange={() => {}} /> },
+                                            onActivate: () => {
+                                                this.isPaneOpen.value = false;
+                                                this.sidePanelAnchorElement.value = undefined;
+                                            }
+                                        }
+                                    ]
+                                }}
+                                onDismiss={() => {
+                                    this.sidePanelAnchorElement.value = undefined;
+                                }}
                             />
-                        ) : null
-                    )}
+                        ) : null;
+                    }}
                 </Observer>
+                {/* Content area: Calendar and side panel side by side */}
+                <div className="content-row flex-row">
+                    <Observer isPaneOpen={this.isPaneOpen} display={this.displayCalendar}>
+                        {(props: { isPaneOpen: boolean; display: boolean }) => (
+                            <div className={`flex-column scroll-hidden calendar-area ${props.isPaneOpen ? 'pane-open' : 'pane-closed'}`}>
+                                {props.display ? (
+                                    <div className="calendar-component">
+                                        <FullCalendar
+                                            defaultView="dayGridMonth"
+                                            editable={true}
+                                            eventClick={this.onEventClick}
+                                            eventDrop={this.onEventDrop}
+                                            eventRender={this.eventRender}
+                                            eventResize={this.onEventResize}
+                                            eventOrder="order,start,-duration,allDay,title"
+                                            eventSources={[
+                                                { events: this.freeFormEventSource.getEvents },
+                                                { events: this.vsoCapacityEventSource.getEvents }
+                                            ]}
+                                            firstDay={localeData(navigator.language).firstDayOfWeek()}
+                                            header={false}
+                                            height={this.getCalendarHeight()}
+                                            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                                            ref={this.calendarComponentRef}
+                                            select={this.onSelectCalendarDates}
+                                            selectable={true}
+                                            eventLimit={true}
+                                        />
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+                    </Observer>
+                    <Observer isPaneOpen={this.isPaneOpen}>
+                        {(props: { isPaneOpen: boolean }) => (
+                            props.isPaneOpen ? (
+                                <SummaryComponent 
+                                    capacityEventSource={this.vsoCapacityEventSource} 
+                                    freeFormEventSource={this.freeFormEventSource}
+                                    onEditDaysOff={this.onEditDaysOff}
+                                    onEditEvent={this.onEditFreeFormEvent}
+                                    onTogglePane={() => this.isPaneOpen.value = !this.isPaneOpen.value}
+                                />
+                            ) : null
+                        )}
+                    </Observer>
+                </div>
                 <Observer anchorElement={this.anchorElement}>
                     {(props: { anchorElement: HTMLElement | undefined }) => {
                         return props.anchorElement ? (

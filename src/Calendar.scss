@@ -3,29 +3,66 @@
 @import "~@fullcalendar/daygrid/main.css";
 
 // Constrain the overall page height to viewport
-.flex-row.flex-grow {
+.flex-row.flex-grow,
+.flex-column.flex-grow {
     max-height: 100vh;
     overflow: hidden;
 }
 
+// Content row - holds calendar and side panel
+.content-row {
+    flex: 1;
+    overflow: hidden;
+}
+
+// Side panel options row
+.side-panel-options-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
+    background-color: var(--background-color, #ffffff);
+}
+
+// Navigation button group - reduced gap between prev/next buttons
+.nav-button-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
 // Team dropdown styling - ensure it positions correctly
 .bolt-header-with-commandbar {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    
     .bolt-header-title-area {
         position: relative;
+        flex: 1;
+        width: 100%;
+    }
+
+    &.full-width-header {
+        .bolt-header-title-area {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
     }
 }
 
 .calendar-area {
     overflow: auto;
-    transition: width 0.2s ease;
-    align-self: stretch;
+    display: flex;
+    flex-direction: column;
 
     &.pane-open {
-        width: 75%;
+        flex: 0 0 75%;
     }
 
     &.pane-closed {
-        width: 100%;
+        flex: 1;
     }
 
     .calendar-component {
@@ -378,11 +415,9 @@
 .summary-area {
     border-left: 1px solid var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
     overflow: hidden;
-    width: 25%;
-    transition: width 0.2s ease;
+    flex: 0 0 25%;
     display: flex;
     flex-direction: column;
-    align-self: stretch;
 
     .summary-header {
         display: flex;
