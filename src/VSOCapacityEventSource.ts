@@ -169,7 +169,10 @@ export class VSOCapacityEventSource {
                             id: IterationId + iteration.name,
                             rendering: "background",
                             start: iterationStart,
-                            title: title
+                            title: title,
+                            extendedProps: {
+                                category: "Iteration"
+                            }
                         });
 
                         const iterationPath = iteration.path.substr(iteration.path.indexOf("\\") + 1);
@@ -220,7 +223,10 @@ export class VSOCapacityEventSource {
                             id: event.id,
                             order: -1,
                             start: start,
-                            title: ""
+                            title: "",
+                            extendedProps: {
+                                category: "Days Off"
+                            }
                         });
                     }
                 });

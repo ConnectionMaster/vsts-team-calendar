@@ -3,7 +3,7 @@ import React = require("react");
 import { Button } from "azure-devops-ui/Button";
 import { Card } from "azure-devops-ui/Card";
 import { Link } from "azure-devops-ui/Link";
-import { IListItemDetails, ListItem, ScrollableList } from "azure-devops-ui/List";
+import { IListItemDetails, ListItem } from "azure-devops-ui/List";
 import { Observer } from "azure-devops-ui/Observer";
 import { Surface, SurfaceBackground } from "azure-devops-ui/Surface";
 
@@ -21,6 +21,11 @@ interface ISummaryComponentProps {
      * Object that stores all event data
      */
     freeFormEventSource: FreeFormEventsSource;
+
+    /**
+     * Custom color map for event categories
+     */
+    eventColorMap?: Map<string, string>;
 
     /**
      * Callback to open edit dialog for days off
@@ -43,6 +48,7 @@ interface ISummaryComponentState {
     showAllDaysOff: boolean;
     showAllEvents: boolean;
     itemsToShow: number;
+    expandedCategories: Set<string>;
 }
 
 export class SummaryComponent extends React.Component<ISummaryComponentProps, ISummaryComponentState> {
@@ -55,7 +61,8 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             showAllIterations: false,
             showAllDaysOff: false,
             showAllEvents: false,
-            itemsToShow: 5 // Default fallback
+            itemsToShow: 5, // Default fallback
+            expandedCategories: new Set<string>()
         };
     }
 
@@ -237,8 +244,20 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
     }
 
     private renderRow = (index: number, item: IEventCategory, details: IListItemDetails<IEventCategory>, key?: string): JSX.Element => {
-        const handleClick = () => {
-            if (item.url) {
+        const hasMultipleEvents = item.eventCount > 1 && item.linkedEvents && item.linkedEvents.length > 1;
+        const isExpanded = this.state.expandedCategories.has(item.title);
+
+        const handleCategoryClick = () => {
+            if (hasMultipleEvents) {
+                // Toggle expansion
+                const newExpanded = new Set(this.state.expandedCategories);
+                if (isExpanded) {
+                    newExpanded.delete(item.title);
+                } else {
+                    newExpanded.add(item.title);
+                }
+                this.setState({ expandedCategories: newExpanded });
+            } else if (item.url) {
                 // For iterations - open in new tab
                 window.open(item.url, "_blank");
             } else if (item.linkedEvent && item.linkedEvent.id && this.props.onEditEvent) {
@@ -250,29 +269,85 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             }
         };
 
-        const isClickable = item.url || item.linkedEvent;
+        const displayColor = this.getDisplayColor(item);
 
         return (
-            <ListItem key={key || "list-item" + index} index={index} details={details}>
-                <div 
-                    className="catagory-summary-row flex-row h-scroll-hidden" 
-                    style={{ cursor: isClickable ? "pointer" : "default" }}
-                    onClick={isClickable ? handleClick : undefined}
-                >
-                    {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
-                    {!item.imageUrl && item.color && <div className="category-color" style={{ backgroundColor: item.color }} />}
-                    <div className="flex-column h-scroll-hidden catagory-data">
-                        <div className="category-titletext">{item.title}</div>
-                        <div className="category-subtitle">{item.subTitle}</div>
+            <>
+                <ListItem key={key || "list-item" + index} index={index} details={details}>
+                    <div 
+                        className="catagory-summary-row flex-row h-scroll-hidden" 
+                        style={{ cursor: "pointer" }}
+                        onClick={handleCategoryClick}
+                    >
+                        {hasMultipleEvents && (
+                            <div style={{ marginRight: "8px", fontSize: "12px" }}>
+                                {isExpanded ? "▼" : "▶"}
+                            </div>
+                        )}
+                        {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
+                        {!item.imageUrl && displayColor && <div className="category-color" style={{ backgroundColor: displayColor }} />}
+                        <div className="flex-column h-scroll-hidden catagory-data">
+                            <div className="category-titletext">{item.title}</div>
+                            <div className="category-subtitle">{item.subTitle}</div>
+                        </div>
                     </div>
-                </div>
-            </ListItem>
+                </ListItem>
+                {isExpanded && hasMultipleEvents && item.linkedEvents!.map((event, eventIndex) => (
+                    <ListItem key={`${key || "list-item" + index}-event-${eventIndex}`} index={index} details={details}>
+                        <div
+                            className="catagory-summary-row flex-row h-scroll-hidden"
+                            style={{ 
+                                cursor: "pointer", 
+                                paddingLeft: "32px",
+                                backgroundColor: "var(--background-color-secondary, rgba(0, 0, 0, 0.02))"
+                            }}
+                            onClick={() => {
+                                if (event.id && this.props.onEditEvent) {
+                                    this.props.onEditEvent(event.id);
+                                }
+                            }}
+                        >
+                            <div style={{ fontSize: "12px", marginRight: "8px", opacity: 0.6 }}>•</div>
+                            <div className="flex-column h-scroll-hidden catagory-data">
+                                <div className="category-titletext" style={{ fontSize: "13px" }}>{event.title}</div>
+                                <div className="category-subtitle" style={{ fontSize: "11px" }}>
+                                    {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                                </div>
+                            </div>
+                        </div>
+                    </ListItem>
+                ))}
+            </>
         );
     };
 
+    private getDisplayColor = (item: IEventCategory): string | undefined => {
+        // Check if there's a custom color for this category
+        if (this.props.eventColorMap && item.title) {
+            const customColor = this.props.eventColorMap.get(item.title);
+            if (customColor) {
+                return customColor;
+            }
+        }
+        // Fall back to the default color
+        return item.color;
+    };
+
     private renderSimpleRow = (item: IEventCategory, index: number): JSX.Element => {
+        const hasMultipleEvents = item.eventCount > 1 && item.linkedEvents && item.linkedEvents.length > 1;
+        const isExpanded = this.state.expandedCategories.has(item.title);
+
         const handleClick = () => {
-            if (item.url) {
+            if (hasMultipleEvents) {
+                // Toggle expansion
+                const newExpanded = new Set(this.state.expandedCategories);
+                if (isExpanded) {
+                    newExpanded.delete(item.title);
+                } else {
+                    newExpanded.add(item.title);
+                }
+                this.setState({ expandedCategories: newExpanded });
+            } else if (item.url) {
                 // For iterations - open in new tab
                 window.open(item.url, "_blank");
             } else if (item.linkedEvent && item.linkedEvent.id && this.props.onEditEvent) {
@@ -284,22 +359,68 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             }
         };
 
-        const isClickable = item.url || item.linkedEvent;
+        const displayColor = this.getDisplayColor(item);
+
+        const formatDate = (dateString: string): string => {
+            const date = new Date(dateString);
+            const month = ('0' + (date.getMonth() + 1)).slice(-2);
+            const day = ('0' + date.getDate()).slice(-2);
+            const year = date.getFullYear();
+            return `${month}/${day}/${year}`;
+        };
 
         return (
-            <div 
-                key={index}
-                className="catagory-summary-row flex-row h-scroll-hidden" 
-                style={{ cursor: isClickable ? "pointer" : "default", padding: "8px 16px" }}
-                onClick={isClickable ? handleClick : undefined}
-            >
-                {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
-                {!item.imageUrl && item.color && <div className="category-color" style={{ backgroundColor: item.color }} />}
-                <div className="flex-column h-scroll-hidden catagory-data">
-                    <div className="category-titletext">{item.title}</div>
-                    <div className="category-subtitle">{item.subTitle}</div>
+            <>
+                <div
+                    key={index}
+                    className="catagory-summary-row flex-row h-scroll-hidden"
+                    style={{ cursor: "pointer", padding: "8px 16px", alignItems: "center" }}
+                    onClick={handleClick}
+                >
+                    {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
+                    {!item.imageUrl && displayColor && <div className="category-color" style={{ backgroundColor: displayColor }} />}
+                    <div className="flex-column h-scroll-hidden catagory-data" style={{ flex: 1 }}>
+                        <div className="category-titletext">{item.title}</div>
+                        <div className="category-subtitle">{item.subTitle}</div>
+                    </div>
+                    {hasMultipleEvents && (
+                        <div style={{ marginLeft: "8px", fontSize: "10px", lineHeight: "1" }}>
+                            {isExpanded ? "▲" : "▼"}
+                        </div>
+                    )}
                 </div>
-            </div>
+                {isExpanded && hasMultipleEvents && item.linkedEvents!.map((event, eventIndex) => (
+                    <div
+                        key={`${index}-event-${eventIndex}`}
+                        className="catagory-summary-row flex-row h-scroll-hidden"
+                        style={{
+                            cursor: "pointer",
+                            padding: "6px 16px 6px 40px",
+                            backgroundColor: "var(--background-color-secondary, rgba(0, 0, 0, 0.15))",
+                            alignItems: "center"
+                        }}
+                        onClick={() => {
+                            if (event.id && this.props.onEditEvent) {
+                                this.props.onEditEvent(event.id);
+                            }
+                        }}
+                    >
+                        <div style={{ 
+                            fontSize: "16px", 
+                            marginRight: "8px", 
+                            opacity: 0.5,
+                            lineHeight: "1",
+                            alignSelf: "center"
+                        }}>•</div>
+                        <div className="flex-column h-scroll-hidden catagory-data">
+                            <div className="category-titletext" style={{ fontSize: "13px", opacity: 1 }}>{event.title}</div>
+                            <div className="category-subtitle" style={{ fontSize: "11px", opacity: 0.9 }}>
+                                {formatDate(event.startDate)} - {formatDate(event.endDate)}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </>
         );
     };
 }

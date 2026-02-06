@@ -130,13 +130,18 @@ export class FreeFormEventsSource {
 
                         if (catagoryMap[event.category]) {
                             catagoryMap[event.category].eventCount++;
+                            // Add to linkedEvents array
+                            if (catagoryMap[event.category].linkedEvents) {
+                                catagoryMap[event.category].linkedEvents!.push(event);
+                            }
                         } else {
                             catagoryMap[event.category] = {
                                 color: eventColor,
                                 eventCount: 1,
                                 subTitle: event.title,
                                 title: event.category,
-                                linkedEvent: event
+                                linkedEvent: event,
+                                linkedEvents: [event]
                             };
                         }
                     }

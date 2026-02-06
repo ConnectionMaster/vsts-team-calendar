@@ -104,6 +104,11 @@ export interface IEventCategory {
      * Linked event for editing (for days off and events)
      */
     linkedEvent?: ICalendarEvent;
+
+    /**
+     * All events in this category (for categories with multiple events)
+     */
+    linkedEvents?: ICalendarEvent[];
 }
 
 /**

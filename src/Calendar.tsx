@@ -14,13 +14,14 @@ import { Button } from "azure-devops-ui/Button";
 import { Checkbox } from "azure-devops-ui/Checkbox";
 import { Dropdown, DropdownExpandableButton } from "azure-devops-ui/Dropdown";
 import { CustomHeader, HeaderTitleArea } from "azure-devops-ui/Header";
-import { IHeaderCommandBarItem, HeaderCommandBar } from "azure-devops-ui/HeaderCommandBar";
-import { Icon } from "azure-devops-ui/Icon";
+import { IHeaderCommandBarItem } from "azure-devops-ui/HeaderCommandBar";
 import { IListBoxItem } from "azure-devops-ui/ListBox";
-import { ContextualMenu } from "azure-devops-ui/Menu";
+import { ContextualMenu, MenuItemType } from "azure-devops-ui/Menu";
 import { ObservableValue } from "azure-devops-ui/Core/Observable";
 import { Observer } from "azure-devops-ui/Observer";
 import { Page } from "azure-devops-ui/Page";
+import { Panel } from "azure-devops-ui/Panel";
+import { TextField } from "azure-devops-ui/TextField";
 import { Location } from "azure-devops-ui/Utilities/Position";
 
 import { View, EventApi, Duration, Calendar } from "@fullcalendar/core";
@@ -33,6 +34,7 @@ import { localeData } from "moment";
 
 import { AddEditDaysOffDialog } from "./AddEditDaysOffDialog";
 import { AddEditEventDialog } from "./AddEditEventDialog";
+import { generateColor } from "./Color";
 import { ICalendarEvent } from "./Contracts";
 import { FreeFormId, FreeFormEventsSource } from "./FreeFormEventSource";
 import { SummaryComponent } from "./SummaryComponent";
@@ -61,6 +63,9 @@ class ExtensionContent extends React.Component {
     navigationService: IHostNavigationService | undefined;
     openDialog: ObservableValue<Dialogs> = new ObservableValue(Dialogs.None);
     isPaneOpen: ObservableValue<boolean> = new ObservableValue<boolean>(true);
+    isColorPanelOpen: ObservableValue<boolean> = new ObservableValue<boolean>(false);
+    eventColorMap: ObservableValue<Map<string, string>> = new ObservableValue<Map<string, string>>(new Map());
+    tempColorMap: Map<string, string> = new Map();
     projectId: string;
     projectName: string;
     selectedEndDate: Date;
@@ -238,14 +243,26 @@ class ExtensionContent extends React.Component {
                     <Observer isPaneOpen={this.isPaneOpen}>
                         {(props: { isPaneOpen: boolean }) => {
                             return (
-                                <Button
-                                    onClick={(e) => {
-                                        this.sidePanelAnchorElement.value = e.currentTarget as HTMLElement;
-                                    }}
-                                    iconProps={{ iconName: "Equalizer" }}
-                                    ariaLabel="Side pane options"
-                                    subtle
-                                />
+                                <>
+                                    <Button
+                                        onClick={() => {
+                                            this.isColorPanelOpen.value = true;
+                                        }}
+                                        iconProps={{ iconName: "Color" }}
+                                        ariaLabel="Color settings"
+                                        tooltipProps={{ text: "Color settings" }}
+                                        subtle
+                                    />
+                                    <Button
+                                        onClick={(e) => {
+                                            this.sidePanelAnchorElement.value = e.currentTarget as HTMLElement;
+                                        }}
+                                        iconProps={{ iconName: "Equalizer" }}
+                                        ariaLabel="Side pane options"
+                                        tooltipProps={{ text: "View options" }}
+                                        subtle
+                                    />
+                                </>
                             );
                         }}
                     </Observer>
@@ -261,6 +278,11 @@ class ExtensionContent extends React.Component {
                                 menuProps={{
                                     id: "side-panel-options",
                                     items: [
+                                        {
+                                            id: "side-pane-section",
+                                            text: "Side Pane",
+                                            itemType: MenuItemType.Header
+                                        },
                                         {
                                             id: "details",
                                             text: "Details",
@@ -321,12 +343,13 @@ class ExtensionContent extends React.Component {
                             </div>
                         )}
                     </Observer>
-                    <Observer isPaneOpen={this.isPaneOpen}>
-                        {(props: { isPaneOpen: boolean }) => (
+                    <Observer isPaneOpen={this.isPaneOpen} eventColorMap={this.eventColorMap}>
+                        {(props: { isPaneOpen: boolean; eventColorMap: Map<string, string> }) => (
                             props.isPaneOpen ? (
                                 <SummaryComponent 
                                     capacityEventSource={this.vsoCapacityEventSource} 
                                     freeFormEventSource={this.freeFormEventSource}
+                                    eventColorMap={props.eventColorMap}
                                     onEditDaysOff={this.onEditDaysOff}
                                     onEditEvent={this.onEditFreeFormEvent}
                                     onTogglePane={() => this.isPaneOpen.value = !this.isPaneOpen.value}
@@ -355,6 +378,128 @@ class ExtensionContent extends React.Component {
                                 }}
                             />
                         ) : null;
+                    }}
+                </Observer>
+                {/* Color Settings Panel */}
+                <Observer isColorPanelOpen={this.isColorPanelOpen} eventColorMap={this.eventColorMap}>
+                    {(props: { isColorPanelOpen: boolean; eventColorMap: Map<string, string> }) => {
+                        if (!props.isColorPanelOpen) return null;
+
+                        // Get all categories from both event sources
+                        const categories: string[] = [];
+                        const freeFormCategories = Array.from(this.freeFormEventSource.getCategories());
+                        categories.push(...freeFormCategories);
+                        
+                        // Add default categories for capacity events
+                        categories.push("Days Off", "Iteration");
+
+                        // Remove duplicates
+                        const uniqueCategories = Array.from(new Set(categories));
+
+                        return (
+                            <Panel
+                                onDismiss={() => {
+                                    this.isColorPanelOpen.value = false;
+                                    this.tempColorMap = new Map();
+                                }}
+                                titleProps={{ text: "Event Colors" }}
+                                description="Customize colors for event categories"
+                                className="color-settings-panel"
+                                footerButtonProps={[
+                                    {
+                                        text: "Cancel",
+                                        onClick: () => {
+                                            this.isColorPanelOpen.value = false;
+                                            this.tempColorMap = new Map();
+                                        }
+                                    },
+                                    {
+                                        text: "Save",
+                                        primary: true,
+                                        onClick: () => {
+                                            // Save temp colors to actual map
+                                            this.eventColorMap.value = new Map(this.tempColorMap);
+                                            this.saveColorSettings();
+                                            this.isColorPanelOpen.value = false;
+                                            this.tempColorMap = new Map();
+                                            // Refresh calendar
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().refetchEvents();
+                                            }
+                                        }
+                                    }
+                                ]}
+                            >
+                                <div className="color-settings-content">
+                                    {uniqueCategories.length === 0 ? (
+                                        <div style={{ padding: "16px", textAlign: "center", color: "var(--text-secondary-color)" }}>
+                                            No event categories yet. Add events to customize their colors.
+                                        </div>
+                                    ) : (
+                                        uniqueCategories.map(category => {
+                                            const currentColor = this.tempColorMap.has(category)
+                                                ? this.tempColorMap.get(category)
+                                                : (props.eventColorMap.get(category) || this.getDefaultColor(category));
+
+                                            return (
+                                                <div key={category} style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                                                    <div style={{ flex: "0 0 120px", fontWeight: 500 }}>
+                                                        {category}
+                                                    </div>
+                                                    <TextField
+                                                        value={currentColor}
+                                                        onChange={(e, newValue) => {
+                                                            this.tempColorMap.set(category, newValue);
+                                                            // Force re-render
+                                                            this.forceUpdate();
+                                                        }}
+                                                        placeholder="#3b82f6"
+                                                    />
+                                                    <div
+                                                        className="color-preview-swatch"
+                                                        style={{
+                                                            backgroundColor: currentColor
+                                                        }}
+                                                        onClick={() => {
+                                                            const colorInput = document.getElementById(`color-picker-${category}`) as HTMLInputElement;
+                                                            if (colorInput) {
+                                                                colorInput.click();
+                                                            }
+                                                        }}
+                                                        title="Click to open color picker"
+                                                    >
+                                                        <input
+                                                            id={`color-picker-${category}`}
+                                                            type="color"
+                                                            value={currentColor}
+                                                            onChange={(e) => {
+                                                                this.tempColorMap.set(category, e.target.value);
+                                                                this.forceUpdate();
+                                                            }}
+                                                            style={{
+                                                                opacity: 0,
+                                                                position: "absolute",
+                                                                width: "100%",
+                                                                height: "100%",
+                                                                cursor: "pointer"
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        text="Reset"
+                                                        subtle
+                                                        onClick={() => {
+                                                            this.tempColorMap.set(category, this.getDefaultColor(category));
+                                                            this.forceUpdate();
+                                                        }}
+                                                    />
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </Panel>
+                        );
                     }}
                 </Observer>
                 <Observer dialog={this.openDialog}>
@@ -404,6 +549,14 @@ class ExtensionContent extends React.Component {
      * Edits the rendered event if required
      */
     private eventRender = (arg: { isMirror: boolean; isStart: boolean; isEnd: boolean; event: EventApi; el: HTMLElement; view: View }) => {
+        // Apply custom colors based on category
+        const category = arg.event.extendedProps?.category;
+        if (category && this.eventColorMap.value.has(category)) {
+            const customColor = this.eventColorMap.value.get(category);
+            arg.el.style.backgroundColor = customColor!;
+            arg.el.style.borderColor = customColor!;
+        }
+
         if (arg.event.id.startsWith(DaysOffId) && arg.event.start) {
             // Add days-off class for styling
             arg.el.classList.add('fc-days-off-event');
@@ -494,6 +647,57 @@ class ExtensionContent extends React.Component {
             return height.offsetHeight - 150;
         }
         return 200;
+    }
+
+    private getDefaultColor(category: string): string {
+        // Return default colors for known categories
+        const defaultColors: { [key: string]: string } = {
+            "Days Off": "#ff6b6b",
+            "Iteration": "#4dabf7",
+            "Uncategorized": "#868e96"
+        };
+
+        if (defaultColors[category]) {
+            return defaultColors[category];
+        }
+
+        // For custom categories, generate a color based on the category name
+        // This ensures consistent colors for the same category
+        return generateColor(category);
+    }
+
+    private async loadColorSettings() {
+        if (!this.dataManager) return;
+
+        try {
+            const colorData = await this.dataManager.getValue<{ [key: string]: string }>("eventColors");
+            if (colorData) {
+                const colorMap = new Map<string, string>();
+                for (const key in colorData) {
+                    if (colorData.hasOwnProperty(key)) {
+                        colorMap.set(key, colorData[key]);
+                    }
+                }
+                this.eventColorMap.value = colorMap;
+            }
+        } catch (error) {
+            // No saved colors yet, use defaults
+            console.log("No saved color settings found, using defaults");
+        }
+    }
+
+    private async saveColorSettings() {
+        if (!this.dataManager) return;
+
+        try {
+            const colorData: { [key: string]: string } = {};
+            this.eventColorMap.value.forEach((value, key) => {
+                colorData[key] = value;
+            });
+            await this.dataManager.setValue("eventColors", colorData);
+        } catch (error) {
+            console.error("Failed to save color settings:", error);
+        }
     }
 
     private getMonthPickerOptions(): IListBoxItem[] {
@@ -589,7 +793,8 @@ class ExtensionContent extends React.Component {
             
             const preloadPromises = [
                 this.freeFormEventSource.preloadCurrentMonthEvents(),
-                this.vsoCapacityEventSource.preloadCurrentIterations()
+                this.vsoCapacityEventSource.preloadCurrentIterations(),
+                this.loadColorSettings()
             ];
             
             await Promise.all(preloadPromises);
