@@ -235,8 +235,13 @@ export class VSOCapacityEventSource {
                 this.iterationSummaryData.value = currentIterations;
                 this.capacitySummaryData.value = Object.keys(capacityCatagoryMap).map(key => {
                     const catagory = capacityCatagoryMap[key];
-                    if (catagory.eventCount > 1) {
-                        catagory.subTitle = catagory.eventCount + " days off";
+                    if (catagory.linkedEvents && catagory.linkedEvents.length > 1) {
+                        catagory.subTitle = catagory.linkedEvents.length + " day off periods";
+                    } else if (catagory.linkedEvent) {
+                        // Single day off range - show the date range
+                        const start = new Date(catagory.linkedEvent.startDate);
+                        const end = new Date(catagory.linkedEvent.endDate);
+                        catagory.subTitle = formatDate(start, "MM/DD/YYYY") + " - " + formatDate(end, "MM/DD/YYYY");
                     }
                     return catagory;
                 });
@@ -415,20 +420,33 @@ export class VSOCapacityEventSource {
                         src: capacity.teamMember.imageUrl || await this.buildTeamImageUrl(capacity.teamMember.id)
                     };
 
+                    // Track this day off range in the category map (once per range, not per day)
+                    let addedEventToCategory = false;
+                    
                     // add personal day off event to calendar day off events
                     const dates = getDatesInRange(start, end);
                     for (const dateObj of dates) {
                         if (calendarStart <= dateObj && dateObj <= calendarEnd) {
-                            if (capacityCatagoryMap[capacity.teamMember.id]) {
-                                capacityCatagoryMap[capacity.teamMember.id].eventCount++;
-                            } else {
-                                capacityCatagoryMap[capacity.teamMember.id] = {
-                                    eventCount: 1,
-                                    imageUrl: capacity.teamMember.imageUrl || await this.buildTeamImageUrl(capacity.teamMember.id),
-                                    subTitle: formatDate(dateObj, "MM/DD/YYYY"),
-                                    title: capacity.teamMember.displayName,
-                                    linkedEvent: event
-                                };
+                            // Add to category map only once per day off range
+                            if (!addedEventToCategory) {
+                                if (capacityCatagoryMap[capacity.teamMember.id]) {
+                                    capacityCatagoryMap[capacity.teamMember.id].eventCount++;
+                                    // Add this event to the linkedEvents array if not already present
+                                    if (!capacityCatagoryMap[capacity.teamMember.id].linkedEvents) {
+                                        capacityCatagoryMap[capacity.teamMember.id].linkedEvents = [];
+                                    }
+                                    capacityCatagoryMap[capacity.teamMember.id].linkedEvents!.push(event);
+                                } else {
+                                    capacityCatagoryMap[capacity.teamMember.id] = {
+                                        eventCount: 1,
+                                        imageUrl: capacity.teamMember.imageUrl || await this.buildTeamImageUrl(capacity.teamMember.id),
+                                        subTitle: formatDate(start, "MM/DD/YYYY") + " - " + formatDate(end, "MM/DD/YYYY"),
+                                        title: capacity.teamMember.displayName,
+                                        linkedEvent: event,
+                                        linkedEvents: [event]
+                                    };
+                                }
+                                addedEventToCategory = true;
                             }
 
                             const date = dateObj.toISOString();
@@ -483,20 +501,33 @@ export class VSOCapacityEventSource {
                     src: teamImage
                 };
 
+                // Track this day off range in the category map (once per range, not per day)
+                let addedEventToCategory = false;
+
                 // add team day off event to calendar day off events
                 const dates = getDatesInRange(start, end);
                 for (const dateObj of dates) {
                     if (calendarStart <= dateObj && dateObj <= calendarEnd) {
-                        if (capacityCatagoryMap[this.teamContext.team]) {
-                            capacityCatagoryMap[this.teamContext.team].eventCount++;
-                        } else {
-                            capacityCatagoryMap[this.teamContext.team] = {
-                                eventCount: 1,
-                                imageUrl: teamImage,
-                                subTitle: formatDate(dateObj, "MM/DD/YYYY"),
-                                title: this.teamContext.team,
-                                linkedEvent: event
-                            };
+                        // Add to category map only once per day off range
+                        if (!addedEventToCategory) {
+                            if (capacityCatagoryMap[this.teamContext.team]) {
+                                capacityCatagoryMap[this.teamContext.team].eventCount++;
+                                // Add this event to the linkedEvents array if not already present
+                                if (!capacityCatagoryMap[this.teamContext.team].linkedEvents) {
+                                    capacityCatagoryMap[this.teamContext.team].linkedEvents = [];
+                                }
+                                capacityCatagoryMap[this.teamContext.team].linkedEvents!.push(event);
+                            } else {
+                                capacityCatagoryMap[this.teamContext.team] = {
+                                    eventCount: 1,
+                                    imageUrl: teamImage,
+                                    subTitle: formatDate(start, "MM/DD/YYYY") + " - " + formatDate(end, "MM/DD/YYYY"),
+                                    title: this.teamContext.team,
+                                    linkedEvent: event,
+                                    linkedEvents: [event]
+                                };
+                            }
+                            addedEventToCategory = true;
                         }
 
                         const date = dateObj.toISOString();

@@ -396,12 +396,16 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                         style={{
                             cursor: "pointer",
                             padding: "6px 16px 6px 40px",
-                            backgroundColor: "var(--background-color-secondary, rgba(0, 0, 0, 0.15))",
+                            backgroundColor: "rgba(0, 0, 0, 0.04)",
                             alignItems: "center"
                         }}
                         onClick={() => {
                             if (event.id && this.props.onEditEvent) {
+                                // Free-form event with id
                                 this.props.onEditEvent(event.id);
+                            } else if (!event.id && this.props.onEditDaysOff) {
+                                // Days off event without id
+                                this.props.onEditDaysOff(event);
                             }
                         }}
                     >

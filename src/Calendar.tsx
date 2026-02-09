@@ -172,18 +172,6 @@ class ExtensionContent extends React.Component {
                                         );
                                     }}
                                 </Observer>
-                                <Button
-                                    text="Today"
-                                    onClick={() => {
-                                        if (this.calendarComponentRef.current) {
-                                            this.getCalendarApi().today();
-                                            this.currentMonthAndYear.value = {
-                                                month: new Date().getMonth(),
-                                                year: new Date().getFullYear()
-                                            };
-                                        }
-                                    }}
-                                />
                                 <Observer currentMonthAndYear={this.currentMonthAndYear}>
                                     {(dateProps: { currentMonthAndYear: MonthAndYear }) => {
                                         return (
@@ -200,6 +188,18 @@ class ExtensionContent extends React.Component {
                                         );
                                     }}
                                 </Observer>
+                                <Button
+                                    text="Today"
+                                    onClick={() => {
+                                        if (this.calendarComponentRef.current) {
+                                            this.getCalendarApi().today();
+                                            this.currentMonthAndYear.value = {
+                                                month: new Date().getMonth(),
+                                                year: new Date().getFullYear()
+                                            };
+                                        }
+                                    }}
+                                />
                                 <div className="nav-button-group">
                                     <Button
                                         iconProps={{ iconName: "ChevronLeft" }}

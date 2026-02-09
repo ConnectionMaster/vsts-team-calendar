@@ -112,9 +112,8 @@ export class AddEditEventDialog extends React.Component<IAddEditEventDialogProps
                         titleProps={{ size: TitleSize.Small, text: this.props.eventApi ? "Edit event" : "Add event" }}
                     />
                     <PanelContent>
-                        <Observer isDatePickerOpen={this.isDatePickerOpen}>
-                            {(props: { isDatePickerOpen: boolean }) => (
-                                <div className={`flex-grow flex-column event-dialog-content ${props.isDatePickerOpen ? 'picker-open' : ''}`}>
+                        <Observer>
+                                <div className="flex-grow flex-column event-dialog-content">
                             <Observer message={this.message}>
                                 {(props: { message: string }) => {
                                     return props.message !== "" ? (
@@ -161,7 +160,9 @@ export class AddEditEventDialog extends React.Component<IAddEditEventDialogProps
                                                     onCalendarClose={() => this.isDatePickerOpen.value = false}
                                                     dateFormat="MM/dd/yyyy"
                                                     className="bolt-textfield-input input-date"
-                                                    
+                                                    popperProps={{
+                                                        strategy: "fixed"
+                                                    }}
                                                 />
                                                 <Icon 
                                                     className="date-picker-icon" 
@@ -197,6 +198,9 @@ export class AddEditEventDialog extends React.Component<IAddEditEventDialogProps
                                                     onCalendarClose={() => this.isDatePickerOpen.value = false}
                                                     dateFormat="MM/dd/yyyy"
                                                     className="bolt-textfield-input input-date"
+                                                    popperProps={{
+                                                        strategy: "fixed"
+                                                    }}
                                                 />
                                                 <Icon 
                                                     className="date-picker-icon" 
@@ -214,7 +218,7 @@ export class AddEditEventDialog extends React.Component<IAddEditEventDialogProps
                                 </div>
                             </div>
                         </div>
-                            )}
+                        
                         </Observer>
                     </PanelContent>
                     <PanelFooter>
