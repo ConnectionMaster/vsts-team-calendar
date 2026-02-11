@@ -151,7 +151,7 @@ class ExtensionContent extends React.Component {
 
     public render(): JSX.Element {
         return (
-            <Page className="flex-grow flex-column">
+            <Page className="flex-grow flex-column bolt-page-grey">
                 {/* Single header: All controls on one row - spans full width above calendar and panel */}
                 <CustomHeader className="bolt-header-with-commandbar full-width-header">
                     <HeaderTitleArea>
@@ -390,9 +390,6 @@ class ExtensionContent extends React.Component {
                         const freeFormCategories = Array.from(this.freeFormEventSource.getCategories());
                         categories.push(...freeFormCategories);
                         
-                        // Add default categories for capacity events
-                        categories.push("Days Off", "Iteration");
-
                         // Remove duplicates
                         const uniqueCategories = Array.from(new Set(categories));
 

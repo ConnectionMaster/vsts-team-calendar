@@ -276,7 +276,6 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                 <ListItem key={key || "list-item" + index} index={index} details={details}>
                     <div 
                         className="catagory-summary-row flex-row h-scroll-hidden" 
-                        style={{ cursor: "pointer" }}
                         onClick={handleCategoryClick}
                     >
                         {hasMultipleEvents && (
@@ -296,11 +295,6 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                     <ListItem key={`${key || "list-item" + index}-event-${eventIndex}`} index={index} details={details}>
                         <div
                             className="catagory-summary-row flex-row h-scroll-hidden"
-                            style={{ 
-                                cursor: "pointer", 
-                                paddingLeft: "32px",
-                                backgroundColor: "var(--background-color-secondary, rgba(0, 0, 0, 0.02))"
-                            }}
                             onClick={() => {
                                 if (event.id && this.props.onEditEvent) {
                                     this.props.onEditEvent(event.id);
