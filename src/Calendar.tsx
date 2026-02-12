@@ -284,8 +284,8 @@ class ExtensionContent extends React.Component {
                                             itemType: MenuItemType.Header
                                         },
                                         {
-                                            id: "details",
-                                            text: "Details",
+                                            id: "events",
+                                            text: "Events",
                                             iconProps: { render: () => <Checkbox checked={props.isPaneOpen} onChange={() => {}} /> },
                                             onActivate: () => {
                                                 this.isPaneOpen.value = true;

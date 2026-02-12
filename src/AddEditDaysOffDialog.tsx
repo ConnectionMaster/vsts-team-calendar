@@ -27,6 +27,7 @@ import { ICalendarEvent } from "./Contracts";
 import { MessageDialog } from "./MessageDialog";
 import { VSOCapacityEventSource, Everyone } from "./VSOCapacityEventSource";
 import { TeamSettingsIteration } from "azure-devops-extension-api/Work";
+import { TextField } from "azure-devops-ui/TextField";
 
 interface IAddEditDaysOffDialogProps {
     /**

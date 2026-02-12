@@ -2,6 +2,7 @@ import React = require("react");
 
 import { Button } from "azure-devops-ui/Button";
 import { Card } from "azure-devops-ui/Card";
+import { Icon } from "azure-devops-ui/Icon";
 import { Link } from "azure-devops-ui/Link";
 import { IListItemDetails, ListItem } from "azure-devops-ui/List";
 import { Observer } from "azure-devops-ui/Observer";
@@ -47,7 +48,6 @@ interface ISummaryComponentState {
     showAllIterations: boolean;
     showAllDaysOff: boolean;
     showAllEvents: boolean;
-    itemsToShow: number;
     expandedCategories: Set<string>;
 }
 
@@ -61,19 +61,8 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             showAllIterations: false,
             showAllDaysOff: false,
             showAllEvents: false,
-            itemsToShow: 5, // Default fallback
             expandedCategories: new Set<string>()
         };
-    }
-
-    componentDidMount() {
-        this.calculateItemsToShow();
-        if (this.contentRef.current) {
-            this.resizeObserver = new ResizeObserver(() => {
-                this.calculateItemsToShow();
-            });
-            this.resizeObserver.observe(this.contentRef.current);
-        }
     }
 
     componentWillUnmount() {
@@ -83,31 +72,21 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
         }
     }
 
-    private calculateItemsToShow = () => {
-        if (!this.contentRef.current) return;
-        
-        const containerHeight = this.contentRef.current.clientHeight;
-        // Simplified calculation: 50px per card overhead, 50px per item
-        const cardOverhead = 50;
-        const itemHeight = 50;
-        const totalOverhead = cardOverhead * 3; // 3 cards
-        const availableHeight = containerHeight - totalOverhead;
-        
-        // Items per section
-        const itemsPerSection = Math.floor(availableHeight / itemHeight / 3);
-        const itemsToShow = Math.max(5, Math.min(itemsPerSection, 25)); // Between 5 and 25 items per section
-        
-        if (itemsToShow !== this.state.itemsToShow) {
-            this.setState({ itemsToShow });
-        }
-    };
-
     public render(): JSX.Element {
         return (
             <div className="summary-area">
                 <Surface background={SurfaceBackground.neutral}>
                     <div className="summary-header">
-                        <div className="summary-title">Calendar Summary</div>
+                        <div className="summary-title">Calendar Events</div>
+                        {this.props.onTogglePane && (
+                            <Button
+                                ariaLabel="Close panel"
+                                iconProps={{ iconName: "Cancel" }}
+                                onClick={this.props.onTogglePane}
+                                subtle
+                                tooltipProps={{ text: "Close panel" }}
+                            />
+                        )}
                     </div>
                     <div className="summary-content" ref={this.contentRef}>
                     <Card className="category-card">
@@ -126,29 +105,12 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                     if (props.iterationSummaryData.length === 0) {
                                         return <div className="empty-message">No iterations</div>;
                                     }
-                                    const hasMore = props.iterationSummaryData.length > this.state.itemsToShow;
-                                    const displayData = this.state.showAllIterations 
-                                        ? props.iterationSummaryData 
-                                        : props.iterationSummaryData.slice(0, this.state.itemsToShow);
+
+                                    const displayData = props.iterationSummaryData;
+
                                     return (
                                         <>
                                             {displayData.map((item, index) => this.renderSimpleRow(item, index))}
-                                            {hasMore && !this.state.showAllIterations && (
-                                                <Button
-                                                    text={`Show ${props.iterationSummaryData.length - this.state.itemsToShow} more`}
-                                                    onClick={() => this.setState({ showAllIterations: true })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
-                                            {hasMore && this.state.showAllIterations && (
-                                                <Button
-                                                    text="Hide"
-                                                    onClick={() => this.setState({ showAllIterations: false })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
                                         </>
                                     );
                                 }}
@@ -171,29 +133,10 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                     if (props.capacitySummaryData.length === 0) {
                                         return <div className="empty-message">No days off</div>;
                                     }
-                                    const hasMore = props.capacitySummaryData.length > this.state.itemsToShow;
-                                    const displayData = this.state.showAllDaysOff 
-                                        ? props.capacitySummaryData 
-                                        : props.capacitySummaryData.slice(0, this.state.itemsToShow);
+                                    const displayData = props.capacitySummaryData;
                                     return (
                                         <>
                                             {displayData.map((item, index) => this.renderSimpleRow(item, index))}
-                                            {hasMore && !this.state.showAllDaysOff && (
-                                                <Button
-                                                    text={`Show ${props.capacitySummaryData.length - this.state.itemsToShow} more`}
-                                                    onClick={() => this.setState({ showAllDaysOff: true })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
-                                            {hasMore && this.state.showAllDaysOff && (
-                                                <Button
-                                                    text="Hide"
-                                                    onClick={() => this.setState({ showAllDaysOff: false })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
                                         </>
                                     );
                                 }}
@@ -208,29 +151,10 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                     if (props.eventSummaryData.length === 0) {
                                         return <div className="empty-message">No events</div>;
                                     }
-                                    const hasMore = props.eventSummaryData.length > this.state.itemsToShow;
-                                    const displayData = this.state.showAllEvents 
-                                        ? props.eventSummaryData 
-                                        : props.eventSummaryData.slice(0, this.state.itemsToShow);
+                                    const displayData =  props.eventSummaryData;
                                     return (
                                         <>
                                             {displayData.map((item, index) => this.renderSimpleRow(item, index))}
-                                            {hasMore && !this.state.showAllEvents && (
-                                                <Button
-                                                    text={`Show ${props.eventSummaryData.length - this.state.itemsToShow} more`}
-                                                    onClick={() => this.setState({ showAllEvents: true })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
-                                            {hasMore && this.state.showAllEvents && (
-                                                <Button
-                                                    text="Hide"
-                                                    onClick={() => this.setState({ showAllEvents: false })}
-                                                    subtle
-                                                    className="show-more-button"
-                                                />
-                                            )}
                                         </>
                                     );
                                 }}
@@ -368,7 +292,7 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                 <div
                     key={index}
                     className="catagory-summary-row flex-row h-scroll-hidden"
-                    style={{ cursor: "pointer", padding: "8px 16px", alignItems: "center" }}
+                    style={{ cursor: "pointer", padding: "2px 8px 2px 8px", alignItems: "center" }}
                     onClick={handleClick}
                 >
                     {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
@@ -389,7 +313,7 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                         className="catagory-summary-row flex-row h-scroll-hidden"
                         style={{
                             cursor: "pointer",
-                            padding: "6px 16px 6px 40px",
+                            padding: "2px 8px 2px 40px",
                             backgroundColor: "rgba(0, 0, 0, 0.04)",
                             alignItems: "center"
                         }}

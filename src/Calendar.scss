@@ -21,7 +21,7 @@
     align-items: center;
     justify-content: flex-end;
     gap: 4px;
-    padding: 8px 16px;
+    padding: 0px 8px 0px 8px;
     border-bottom: 1px solid var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
     background-color: var(--palette-neutral-2, rgba(0, 0, 0, 0.02));
 }
@@ -227,7 +227,8 @@
             }
 
             .fc-title {
-                font-weight: 500;
+                font-weight: 600;
+                font-family: inherit;
             }
         }
 
@@ -352,24 +353,23 @@
         padding: 4px;
         .column-2 {
             width: 250px;
-
-            .input-date {
-                width: 100%;
-                background-color: var(--input-background-color, var(--palette-neutral-2));
-                color: var(--text-primary-color);
-                border: 1px solid var(--palette-neutral-8);
-                padding: 6px 8px;
-                border-radius: 2px;
-                font-family: inherit;
-                font-size: 14px;
-            }
         }
 
         .date-picker-wrapper {
             position: relative;
             width: 250px;
+            background-color: var(--background-color, rgba(255, 255, 255, 1));
+            border: 1px solid;
+            border-color: rgba(var(--palette-neutral-20), 1);
+            border-radius: 2px;
 
             .input-date {
+                width: 100%;
+                color: var(--text-primary-color);
+                padding: 6px 8px;
+                padding-right: 32px;
+                font-family: inherit;
+                font-size: 14px;
                 cursor: pointer !important;
             }
 
@@ -493,6 +493,16 @@
         border-bottom: 1px solid var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
         min-height: 48px;
         flex-shrink: 0;
+
+        // Close button styling
+        .bolt-button.bolt-button-subtle {
+            min-width: 32px;
+            padding: 4px;
+            
+            &:hover {
+                background-color: var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
+            }
+        }
     }
 
     .summary-title {
@@ -504,7 +514,6 @@
     .summary-content {
         overflow-y: auto;
         flex: 1;
-        padding: 8px 0px 80px 4px; // Extra bottom padding for buttons
         
         // Custom scrollbar styling
         scrollbar-width: thin;
@@ -533,19 +542,22 @@
 
     .category-card {
         margin: 0px 8px 12px 8px;
-        padding-bottom: 8px;
+        padding-bottom: 4px;
         width: calc(100% - 16px);
         box-sizing: border-box;
-        overflow: visible !important;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
         
         // Override Azure DevOps UI Card internal styles
         > * {
-            overflow: visible !important;
+            overflow: hidden;
         }
         
         .bolt-card-content {
-            overflow: visible !important;
-            padding-bottom: 8px !important;
+            overflow: auto;
+            padding-bottom: 4px !important;
+            max-height: 50%;
         }
         
         &:last-child {
@@ -555,39 +567,15 @@
     
     .category-section {
         width: 100%;
-        overflow: visible !important;
+        overflow: visible;
         min-height: 0;
         padding-bottom: 8px;
-    }
-
-    .show-more-button {
-        width: 100% !important;
-        margin: 8px 0px 24px 0px !important;
-        justify-content: flex-start !important;
-        padding: 6px 12px !important;
-        color: var(--communication-foreground, #0078d4) !important;
-        background-color: transparent !important;
-        border: 1px solid transparent !important;
-        height: 32px !important;
-        display: flex !important;
-        align-items: center !important;
-        flex-shrink: 0;
-        font-size: 13px !important;
-        line-height: 20px !important;
-        text-align: left !important;
-        overflow: visible !important;
-        
-        &:hover {
-            background-color: var(--palette-neutral-4, rgba(0, 0, 0, 0.04)) !important;
-            border-color: var(--palette-neutral-8, rgba(0, 0, 0, 0.06)) !important;
-        }
     }
 
     .category-heading {
         display: block;
         font-size: 14px;
         font-weight: 600;
-        padding: 8px 12px 8px 12px;
         color: var(--communication-foreground, #0078d4);
         text-decoration: underline;
 
@@ -614,9 +602,9 @@
 
     .catagory-summary-row {
         padding: 8px 12px 8px 12px;
-        margin: 4px 0px 4px 0px;
+        margin: 4px 0px 8px 0px;
         width: 100%;
-        min-height: 40px;
+        min-height: 30px;
         background-color: var(--palette-black-alpha-6, rgba(0, 0, 0, 0.06));
         border-radius: 3px;
         box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.13);
@@ -624,6 +612,7 @@
         box-sizing: border-box;
         cursor: pointer;
         transition: background-color 0.15s ease;
+        flex: 1;
 
 
         &:hover {
@@ -653,7 +642,6 @@
             font-size: 14px;
             font-weight: 400;
             color: var(--text-primary-color, rgba(0, 0, 0, 0.9));
-            margin-bottom: 2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
