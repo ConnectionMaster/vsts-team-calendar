@@ -4,7 +4,6 @@ import { Button } from "azure-devops-ui/Button";
 import { Card } from "azure-devops-ui/Card";
 import { Icon } from "azure-devops-ui/Icon";
 import { Link } from "azure-devops-ui/Link";
-import { IListItemDetails, ListItem } from "azure-devops-ui/List";
 import { Observer } from "azure-devops-ui/Observer";
 import { Surface, SurfaceBackground } from "azure-devops-ui/Surface";
 
@@ -106,7 +105,12 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                         return <div className="empty-message">No iterations</div>;
                                     }
 
-                                    const displayData = props.iterationSummaryData;
+                                    // Sort by start date (earliest first)
+                                    const displayData = [...props.iterationSummaryData].sort((a, b) => {
+                                        const dateA = a.linkedEvent?.startDate ? new Date(a.linkedEvent.startDate).getTime() : 0;
+                                        const dateB = b.linkedEvent?.startDate ? new Date(b.linkedEvent.startDate).getTime() : 0;
+                                        return dateA - dateB;
+                                    });
 
                                     return (
                                         <>
@@ -133,7 +137,12 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                     if (props.capacitySummaryData.length === 0) {
                                         return <div className="empty-message">No days off</div>;
                                     }
-                                    const displayData = props.capacitySummaryData;
+                                    // Sort by start date (earliest first)
+                                    const displayData = [...props.capacitySummaryData].sort((a, b) => {
+                                        const dateA = a.linkedEvent?.startDate ? new Date(a.linkedEvent.startDate).getTime() : 0;
+                                        const dateB = b.linkedEvent?.startDate ? new Date(b.linkedEvent.startDate).getTime() : 0;
+                                        return dateA - dateB;
+                                    });
                                     return (
                                         <>
                                             {displayData.map((item, index) => this.renderSimpleRow(item, index))}
@@ -151,7 +160,12 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                                     if (props.eventSummaryData.length === 0) {
                                         return <div className="empty-message">No events</div>;
                                     }
-                                    const displayData =  props.eventSummaryData;
+                                    // Sort by start date (earliest first)
+                                    const displayData = [...props.eventSummaryData].sort((a, b) => {
+                                        const dateA = a.linkedEvent?.startDate ? new Date(a.linkedEvent.startDate).getTime() : 0;
+                                        const dateB = b.linkedEvent?.startDate ? new Date(b.linkedEvent.startDate).getTime() : 0;
+                                        return dateA - dateB;
+                                    });
                                     return (
                                         <>
                                             {displayData.map((item, index) => this.renderSimpleRow(item, index))}
@@ -166,78 +180,6 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
             </div>
         );
     }
-
-    private renderRow = (index: number, item: IEventCategory, details: IListItemDetails<IEventCategory>, key?: string): JSX.Element => {
-        const hasMultipleEvents = item.eventCount > 1 && item.linkedEvents && item.linkedEvents.length > 1;
-        const isExpanded = this.state.expandedCategories.has(item.title);
-
-        const handleCategoryClick = () => {
-            if (hasMultipleEvents) {
-                // Toggle expansion
-                const newExpanded = new Set(this.state.expandedCategories);
-                if (isExpanded) {
-                    newExpanded.delete(item.title);
-                } else {
-                    newExpanded.add(item.title);
-                }
-                this.setState({ expandedCategories: newExpanded });
-            } else if (item.url) {
-                // For iterations - open in new tab
-                window.open(item.url, "_blank");
-            } else if (item.linkedEvent && item.linkedEvent.id && this.props.onEditEvent) {
-                // For free-form events - open event edit dialog (events have an id property)
-                this.props.onEditEvent(item.linkedEvent.id);
-            } else if (item.linkedEvent && this.props.onEditDaysOff) {
-                // For days off - open days off edit dialog (days off events typically don't have id)
-                this.props.onEditDaysOff(item.linkedEvent);
-            }
-        };
-
-        const displayColor = this.getDisplayColor(item);
-
-        return (
-            <>
-                <ListItem key={key || "list-item" + index} index={index} details={details}>
-                    <div 
-                        className="catagory-summary-row flex-row h-scroll-hidden" 
-                        onClick={handleCategoryClick}
-                    >
-                        {hasMultipleEvents && (
-                            <div style={{ marginRight: "8px", fontSize: "12px" }}>
-                                {isExpanded ? "▼" : "▶"}
-                            </div>
-                        )}
-                        {item.imageUrl && <img alt="" className="category-icon" src={item.imageUrl} />}
-                        {!item.imageUrl && displayColor && <div className="category-color" style={{ backgroundColor: displayColor }} />}
-                        <div className="flex-column h-scroll-hidden catagory-data">
-                            <div className="category-titletext">{item.title}</div>
-                            <div className="category-subtitle">{item.subTitle}</div>
-                        </div>
-                    </div>
-                </ListItem>
-                {isExpanded && hasMultipleEvents && item.linkedEvents!.map((event, eventIndex) => (
-                    <ListItem key={`${key || "list-item" + index}-event-${eventIndex}`} index={index} details={details}>
-                        <div
-                            className="catagory-summary-row flex-row h-scroll-hidden"
-                            onClick={() => {
-                                if (event.id && this.props.onEditEvent) {
-                                    this.props.onEditEvent(event.id);
-                                }
-                            }}
-                        >
-                            <div style={{ fontSize: "12px", marginRight: "8px", opacity: 0.6 }}>•</div>
-                            <div className="flex-column h-scroll-hidden catagory-data">
-                                <div className="category-titletext" style={{ fontSize: "13px" }}>{event.title}</div>
-                                <div className="category-subtitle" style={{ fontSize: "11px" }}>
-                                    {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
-                                </div>
-                            </div>
-                        </div>
-                    </ListItem>
-                ))}
-            </>
-        );
-    };
 
     private getDisplayColor = (item: IEventCategory): string | undefined => {
         // Check if there's a custom color for this category
@@ -307,7 +249,11 @@ export class SummaryComponent extends React.Component<ISummaryComponentProps, IS
                         </div>
                     )}
                 </div>
-                {isExpanded && hasMultipleEvents && item.linkedEvents!.map((event, eventIndex) => (
+                {isExpanded && hasMultipleEvents && [...item.linkedEvents!].sort((a, b) => {
+                    const dateA = new Date(a.startDate).getTime();
+                    const dateB = new Date(b.startDate).getTime();
+                    return dateA - dateB;
+                }).map((event, eventIndex) => (
                     <div
                         key={`${index}-event-${eventIndex}`}
                         className="catagory-summary-row flex-row h-scroll-hidden"
