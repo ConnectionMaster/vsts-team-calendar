@@ -21,6 +21,7 @@ import { ObservableValue } from "azure-devops-ui/Core/Observable";
 import { Observer } from "azure-devops-ui/Observer";
 import { Page } from "azure-devops-ui/Page";
 import { Panel } from "azure-devops-ui/Panel";
+import { Spinner, SpinnerSize } from "azure-devops-ui/Spinner";
 import { TextField } from "azure-devops-ui/TextField";
 import { Location } from "azure-devops-ui/Utilities/Position";
 
@@ -152,6 +153,23 @@ class ExtensionContent extends React.Component {
     public render(): JSX.Element {
         return (
             <Page className="flex-grow flex-column bolt-page-grey">
+                <Observer displayCalendar={this.displayCalendar}>
+                    {(props: { displayCalendar: boolean }) => {
+                        if (!props.displayCalendar) {
+                            return (
+                                <div style={{ 
+                                    display: "flex", 
+                                    justifyContent: "center", 
+                                    alignItems: "center", 
+                                    height: "100vh",
+                                    width: "100%"
+                                }}>
+                                    <Spinner size={SpinnerSize.large} label="Loading Calendar..." />
+                                </div>
+                            );
+                        }
+                        return (
+                            <>
                 {/* Single header: All controls on one row - spans full width above calendar and panel */}
                 <CustomHeader className="bolt-header-with-commandbar full-width-header">
                     <HeaderTitleArea>
@@ -521,6 +539,10 @@ class ExtensionContent extends React.Component {
                                 start={this.selectedStartDate}
                             />
                         ) : null;
+                    }}
+                </Observer>
+                            </>
+                        );
                     }}
                 </Observer>
             </Page>
