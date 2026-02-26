@@ -14,7 +14,7 @@ The Calendar Summary panel now features:
 - **Responsive display** - Automatically adjusts the number of items shown based on available screen space
 - **Show more/less controls** - Expandable sections when you have many items (automatically displays 5-25 items based on screen height)
 
-![alt text](image-3.png)
+![alt text](image-1.png)
 
 ### Organized Event Categories
 
@@ -23,7 +23,7 @@ Events are now grouped by category for easier navigation:
 - **Category indicators** - Visual color coding for each event category
 - **Event counts** - See how many events are in each category at a glance
 
-![alt text](image-2.png)
+![alt text](image-6.png)
 
 ### Collapsible Sidebar
 
@@ -33,7 +33,7 @@ The side panel can now be collapsed to give you more screen space for viewing yo
 - **More calendar space** - Collapse the panel when you need to focus on the calendar view
 - **Smooth transitions** - Panel slides in and out smoothly
 
-![alt text](image-9.png)
+![alt text](image-11.png)
 
 ## Searchable Teams
 
@@ -46,11 +46,19 @@ Finding and switching between teams is now much easier with the new team search 
 - **Keyboard navigation** - Use arrow keys and enter to select teams quickly
 - **Clear visual feedback** - See which team is currently selected
 
-![alt text](image-10.png)
+![alt text](image-12.png)
 
 ## Event Color Customization
 
 You can now customize the colors of your event categories to match your preferences or team conventions.
+
+### Access Color Settings
+
+- Open the color settings from the header menu
+- Modify colors for any existing event category
+- Changes apply immediately to all calendar views after saving
+
+![alt text](image-14.png)
 
 ### Color Settings Panel
 
@@ -61,15 +69,7 @@ A new color customization feature lets you:
 - **Reset to defaults** - Easily revert colors to their default values
 - **Persistent settings** - Your color choices are saved and applied across sessions
 
-![alt text](image-4.png)
-
-### Access Color Settings
-
-- Open the color settings from the header menu
-- Modify colors for any existing event category
-- Changes apply immediately to all calendar views after saving
-
-![alt text](image-5.png)
+![alt text](image-13.png)
 
 ## Dialog Improvements
 
@@ -83,7 +83,7 @@ Date selection is now easier with:
 - **Visual feedback** - Clear indication of selected dates
 - **Better keyboard navigation** - Improved accessibility for keyboard users
 
-![alt text](image-7.png)
+![alt text](image-15.png)
 
 ## Visual Polish
 
@@ -94,7 +94,7 @@ Multiple visual refinements throughout the extension:
 - **Modern color palette** - Updated colors that align with Azure DevOps design system
 - **Icon improvements** - Crisper, more consistent icons
 
-![alt text](image-8.png)
+![alt text](image-16.png)
 
 ## Summary
 
