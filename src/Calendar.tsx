@@ -432,8 +432,12 @@ class ExtensionContent extends React.Component {
                                         text: "Save",
                                         primary: true,
                                         onClick: () => {
-                                            // Save temp colors to actual map
-                                            this.eventColorMap.value = new Map(this.tempColorMap);
+                                            // Merge temp colors into existing map instead of replacing
+                                            const newColorMap = new Map(this.eventColorMap.value);
+                                            this.tempColorMap.forEach((value, key) => {
+                                                newColorMap.set(key, value);
+                                            });
+                                            this.eventColorMap.value = newColorMap;
                                             this.saveColorSettings();
                                             this.isColorPanelOpen.value = false;
                                             this.tempColorMap = new Map();
@@ -815,9 +819,12 @@ class ExtensionContent extends React.Component {
                 this.vsoCapacityEventSource.preloadCurrentIterations(),
                 this.loadColorSettings()
             ];
-            
-            await Promise.all(preloadPromises);
-            
+            try {
+                await Promise.all(preloadPromises);
+            } catch (error) {
+                console.error("Error preloading data:", error);
+            }
+
             this.displayCalendar.value = true;
             this.dataManager.setValue<string>("selected-team-" + project.id, selectedTeamId, { scopeType: "User" });
             this.teams.value = allTeams;
