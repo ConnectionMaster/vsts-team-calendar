@@ -116,6 +116,7 @@ export class FreeFormEventsSource {
                             id: FreeFormId + "." + event.id,
                             allDay: true,
                             editable: true,
+                            order: 0,
                             start: start,
                             end: excludedEndDate,
                             title: event.title,
@@ -129,12 +130,18 @@ export class FreeFormEventsSource {
 
                         if (catagoryMap[event.category]) {
                             catagoryMap[event.category].eventCount++;
+                            // Add to linkedEvents array
+                            if (catagoryMap[event.category].linkedEvents) {
+                                catagoryMap[event.category].linkedEvents!.push(event);
+                            }
                         } else {
                             catagoryMap[event.category] = {
                                 color: eventColor,
                                 eventCount: 1,
                                 subTitle: event.title,
-                                title: event.category
+                                title: event.category,
+                                linkedEvent: event,
+                                linkedEvents: [event]
                             };
                         }
                     }

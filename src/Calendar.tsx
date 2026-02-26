@@ -10,15 +10,19 @@ import { TeamMember } from "azure-devops-extension-api/WebApi/WebApi";
 
 import * as SDK from "azure-devops-extension-sdk";
 
+import { Button } from "azure-devops-ui/Button";
+import { Checkbox } from "azure-devops-ui/Checkbox";
 import { Dropdown, DropdownExpandableButton } from "azure-devops-ui/Dropdown";
 import { CustomHeader, HeaderTitleArea } from "azure-devops-ui/Header";
-import { IHeaderCommandBarItem, HeaderCommandBar } from "azure-devops-ui/HeaderCommandBar";
-import { Icon } from "azure-devops-ui/Icon";
+import { IHeaderCommandBarItem } from "azure-devops-ui/HeaderCommandBar";
 import { IListBoxItem } from "azure-devops-ui/ListBox";
-import { ContextualMenu } from "azure-devops-ui/Menu";
+import { ContextualMenu, MenuItemType } from "azure-devops-ui/Menu";
 import { ObservableValue } from "azure-devops-ui/Core/Observable";
 import { Observer } from "azure-devops-ui/Observer";
 import { Page } from "azure-devops-ui/Page";
+import { Panel } from "azure-devops-ui/Panel";
+import { Spinner, SpinnerSize } from "azure-devops-ui/Spinner";
+import { TextField } from "azure-devops-ui/TextField";
 import { Location } from "azure-devops-ui/Utilities/Position";
 
 import { View, EventApi, Duration, Calendar } from "@fullcalendar/core";
@@ -31,6 +35,7 @@ import { localeData } from "moment";
 
 import { AddEditDaysOffDialog } from "./AddEditDaysOffDialog";
 import { AddEditEventDialog } from "./AddEditEventDialog";
+import { generateColor } from "./Color";
 import { ICalendarEvent } from "./Contracts";
 import { FreeFormId, FreeFormEventsSource } from "./FreeFormEventSource";
 import { SummaryComponent } from "./SummaryComponent";
@@ -58,12 +63,17 @@ class ExtensionContent extends React.Component {
     members: TeamMember[];
     navigationService: IHostNavigationService | undefined;
     openDialog: ObservableValue<Dialogs> = new ObservableValue(Dialogs.None);
+    isPaneOpen: ObservableValue<boolean> = new ObservableValue<boolean>(true);
+    isColorPanelOpen: ObservableValue<boolean> = new ObservableValue<boolean>(false);
+    eventColorMap: ObservableValue<Map<string, string>> = new ObservableValue<Map<string, string>>(new Map());
+    tempColorMap: Map<string, string> = new Map();
     projectId: string;
     projectName: string;
     selectedEndDate: Date;
     selectedStartDate: Date;
     selectedTeamName: string;
     showMonthPicker: ObservableValue<boolean> = new ObservableValue<boolean>(false);
+    sidePanelAnchorElement: ObservableValue<HTMLElement | undefined> = new ObservableValue<HTMLElement | undefined>(undefined);
     teams: ObservableValue<WebApiTeam[]>;
     vsoCapacityEventSource: VSOCapacityEventSource;
 
@@ -81,16 +91,8 @@ class ExtensionContent extends React.Component {
             calendarEvents: []
         };
 
+        // Navigation items for lower command bar
         this.commandBarItems = [
-            {
-                iconProps: {
-                    iconName: "Add"
-                },
-                id: "newItem",
-                important: true,
-                onActivate: this.onClickNewItem,
-                text: "New Item"
-            },
             {
                 id: "today",
                 important: true,
@@ -150,74 +152,230 @@ class ExtensionContent extends React.Component {
 
     public render(): JSX.Element {
         return (
-            <Page className="flex-grow flex-row">
-                <div className="flex-column scroll-hidden calendar-area">
-                    <CustomHeader className="bolt-header-with-commandbar">
-                        <HeaderTitleArea className="flex-grow">
-                            <div className="flex-grow">
-                                <Observer currentMonthAndYear={this.currentMonthAndYear}>
-                                    {(props: { currentMonthAndYear: MonthAndYear }) => {
-                                        return (
-                                            <Dropdown
-                                                items={this.getMonthPickerOptions()}
-                                                key={props.currentMonthAndYear.month}
-                                                onSelect={this.onSelectMonthYear}
-                                                placeholder={monthAndYearToString(props.currentMonthAndYear)}
-                                                renderExpandable={expandableProps => (
-                                                    <DropdownExpandableButton hideDropdownIcon={true} {...expandableProps} />
-                                                )}
-                                                width={200}
-                                            />
-                                        );
-                                    }}
-                                </Observer>
-                                <Icon ariaLabel="Video icon" iconName="ChevronRight" />
+            <Page className="flex-grow flex-column bolt-page-grey">
+                <Observer displayCalendar={this.displayCalendar}>
+                    {(props: { displayCalendar: boolean }) => {
+                        if (!props.displayCalendar) {
+                            return (
+                                <div style={{ 
+                                    display: "flex", 
+                                    justifyContent: "center", 
+                                    alignItems: "center", 
+                                    height: "100vh",
+                                    width: "100%"
+                                }}>
+                                    <Spinner size={SpinnerSize.large} label="Loading Calendar..." />
+                                </div>
+                            );
+                        }
+                        return (
+                            <>
+                {/* Single header: All controls on one row - spans full width above calendar and panel */}
+                <CustomHeader className="bolt-header-with-commandbar full-width-header">
+                    <HeaderTitleArea>
+                        <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                                 <Observer teams={this.teams}>
-                                    {(props: { teams: WebApiTeam[] }) => {
-                                        return props.teams.length === 0 ? null : (
+                                    {(teamProps: { teams: WebApiTeam[] }) => {
+                                        return teamProps.teams.length === 0 ? null : (
                                             <Dropdown
                                                 items={this.getTeamPickerOptions()}
                                                 onSelect={this.onSelectTeam}
                                                 placeholder={this.selectedTeamName}
                                                 renderExpandable={expandableProps => <DropdownExpandableButton {...expandableProps} />}
-                                                width={200}
+                                                showFilterBox={true}
+                                                filterPlaceholderText="Filter teams"
+                                                width={280}
                                             />
                                         );
                                     }}
                                 </Observer>
-                            </div>
-                        </HeaderTitleArea>
-                        <HeaderCommandBar items={this.commandBarItems} />
-                    </CustomHeader>
-                    <Observer display={this.displayCalendar}>
-                        {(props: { display: boolean }) => {
-                            return props.display ? (
-                                <div className="calendar-component">
-                                    <FullCalendar
-                                        defaultView="dayGridMonth"
-                                        editable={true}
-                                        eventClick={this.onEventClick}
-                                        eventDrop={this.onEventDrop}
-                                        eventRender={this.eventRender}
-                                        eventResize={this.onEventResize}
-                                        eventSources={[
-                                            { events: this.freeFormEventSource.getEvents },
-                                            { events: this.vsoCapacityEventSource.getEvents }
-                                        ]}
-                                        firstDay={localeData(navigator.language).firstDayOfWeek()}
-                                        header={false}
-                                        height={this.getCalendarHeight()}
-                                        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                                        ref={this.calendarComponentRef}
-                                        select={this.onSelectCalendarDates}
-                                        selectable={true}
+                                <Observer currentMonthAndYear={this.currentMonthAndYear}>
+                                    {(dateProps: { currentMonthAndYear: MonthAndYear }) => {
+                                        return (
+                                            <Dropdown
+                                                items={this.getMonthPickerOptions()}
+                                                key={dateProps.currentMonthAndYear.month}
+                                                onSelect={this.onSelectMonthYear}
+                                                placeholder={monthAndYearToString(dateProps.currentMonthAndYear)}
+                                                renderExpandable={expandableProps => (
+                                                    <DropdownExpandableButton {...expandableProps} />
+                                                )}
+                                                width={180}
+                                            />
+                                        );
+                                    }}
+                                </Observer>
+                                <Button
+                                    text="Today"
+                                    onClick={() => {
+                                        if (this.calendarComponentRef.current) {
+                                            this.getCalendarApi().today();
+                                            this.currentMonthAndYear.value = {
+                                                month: new Date().getMonth(),
+                                                year: new Date().getFullYear()
+                                            };
+                                        }
+                                    }}
+                                />
+                                <div className="nav-button-group">
+                                    <Button
+                                        iconProps={{ iconName: "ChevronLeft" }}
+                                        ariaLabel="Previous month"
+                                        subtle
+                                        tooltipProps={{ text: "Previous month" }}
+                                        onClick={() => {
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().prev();
+                                                this.currentMonthAndYear.value = this.calcMonths(this.currentMonthAndYear.value, -1);
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        iconProps={{ iconName: "ChevronRight" }}
+                                        ariaLabel="Next month"
+                                        subtle
+                                        tooltipProps={{ text: "Next month" }}
+                                        onClick={() => {
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().next();
+                                                this.currentMonthAndYear.value = this.calcMonths(this.currentMonthAndYear.value, 1);
+                                            }
+                                        }}
                                     />
                                 </div>
-                            ) : null;
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "8px" }}>
+                                <Button
+                                    text="New Item"
+                                    iconProps={{ iconName: "Add" }}
+                                    primary={true}
+                                    onClick={this.onClickNewItem}
+                                />
+                            </div>
+                        </div>
+                    </HeaderTitleArea>
+                </CustomHeader>
+                {/* Side panel options row */}
+                <div className="side-panel-options-row">
+                    <Observer isPaneOpen={this.isPaneOpen}>
+                        {(props: { isPaneOpen: boolean }) => {
+                            return (
+                                <>
+                                    <Button
+                                        onClick={() => {
+                                            this.isColorPanelOpen.value = true;
+                                        }}
+                                        iconProps={{ iconName: "Color" }}
+                                        ariaLabel="Color settings"
+                                        tooltipProps={{ text: "Color settings" }}
+                                        subtle
+                                    />
+                                    <Button
+                                        onClick={(e) => {
+                                            this.sidePanelAnchorElement.value = e.currentTarget as HTMLElement;
+                                        }}
+                                        iconProps={{ iconName: "Equalizer" }}
+                                        ariaLabel="Side pane options"
+                                        tooltipProps={{ text: "View options" }}
+                                        subtle
+                                    />
+                                </>
+                            );
                         }}
                     </Observer>
                 </div>
-                <SummaryComponent capacityEventSource={this.vsoCapacityEventSource} freeFormEventSource={this.freeFormEventSource} />
+                {/* Contextual menu for side panel options */}
+                <Observer sidePanelAnchorElement={this.sidePanelAnchorElement} isPaneOpen={this.isPaneOpen}>
+                    {(props: { sidePanelAnchorElement: HTMLElement | undefined; isPaneOpen: boolean }) => {
+                        return props.sidePanelAnchorElement ? (
+                            <ContextualMenu
+                                anchorElement={props.sidePanelAnchorElement}
+                                anchorOffset={{ horizontal: 0, vertical: 0 }}
+                                anchorOrigin={{ horizontal: Location.start, vertical: Location.end }}
+                                menuProps={{
+                                    id: "side-panel-options",
+                                    items: [
+                                        {
+                                            id: "side-pane-section",
+                                            text: "Side Pane",
+                                            itemType: MenuItemType.Header
+                                        },
+                                        {
+                                            id: "events",
+                                            text: "Events",
+                                            iconProps: { render: () => <Checkbox checked={props.isPaneOpen} onChange={() => {}} /> },
+                                            onActivate: () => {
+                                                this.isPaneOpen.value = true;
+                                                this.sidePanelAnchorElement.value = undefined;
+                                            }
+                                        },
+                                        {
+                                            id: "off",
+                                            text: "Off",
+                                            iconProps: { render: () => <Checkbox checked={!props.isPaneOpen} onChange={() => {}} /> },
+                                            onActivate: () => {
+                                                this.isPaneOpen.value = false;
+                                                this.sidePanelAnchorElement.value = undefined;
+                                            }
+                                        }
+                                    ]
+                                }}
+                                onDismiss={() => {
+                                    this.sidePanelAnchorElement.value = undefined;
+                                }}
+                            />
+                        ) : null;
+                    }}
+                </Observer>
+                {/* Content area: Calendar and side panel side by side */}
+                <div className="content-row flex-row">
+                    <Observer isPaneOpen={this.isPaneOpen} display={this.displayCalendar}>
+                        {(props: { isPaneOpen: boolean; display: boolean }) => (
+                            <div className={`flex-column scroll-hidden calendar-area ${props.isPaneOpen ? 'pane-open' : 'pane-closed'}`}>
+                                {props.display ? (
+                                    <div className="calendar-component">
+                                        <FullCalendar
+                                            defaultView="dayGridMonth"
+                                            editable={true}
+                                            eventClick={this.onEventClick}
+                                            eventDrop={this.onEventDrop}
+                                            eventRender={this.eventRender}
+                                            eventResize={this.onEventResize}
+                                            eventOrder="order,start,-duration,allDay,title"
+                                            eventSources={[
+                                                { events: this.freeFormEventSource.getEvents },
+                                                { events: this.vsoCapacityEventSource.getEvents }
+                                            ]}
+                                            firstDay={localeData(navigator.language).firstDayOfWeek()}
+                                            header={false}
+                                            height={this.getCalendarHeight()}
+                                            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                                            ref={this.calendarComponentRef}
+                                            select={this.onSelectCalendarDates}
+                                            selectable={true}
+                                            eventLimit={true}
+                                        />
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+                    </Observer>
+                    <Observer isPaneOpen={this.isPaneOpen} eventColorMap={this.eventColorMap}>
+                        {(props: { isPaneOpen: boolean; eventColorMap: Map<string, string> }) => (
+                            props.isPaneOpen ? (
+                                <SummaryComponent 
+                                    capacityEventSource={this.vsoCapacityEventSource} 
+                                    freeFormEventSource={this.freeFormEventSource}
+                                    eventColorMap={props.eventColorMap}
+                                    onEditDaysOff={this.onEditDaysOff}
+                                    onEditEvent={this.onEditFreeFormEvent}
+                                    onTogglePane={() => this.isPaneOpen.value = !this.isPaneOpen.value}
+                                />
+                            ) : null
+                        )}
+                    </Observer>
+                </div>
                 <Observer anchorElement={this.anchorElement}>
                     {(props: { anchorElement: HTMLElement | undefined }) => {
                         return props.anchorElement ? (
@@ -238,6 +396,129 @@ class ExtensionContent extends React.Component {
                                 }}
                             />
                         ) : null;
+                    }}
+                </Observer>
+                {/* Color Settings Panel */}
+                <Observer isColorPanelOpen={this.isColorPanelOpen} eventColorMap={this.eventColorMap}>
+                    {(props: { isColorPanelOpen: boolean; eventColorMap: Map<string, string> }) => {
+                        if (!props.isColorPanelOpen) return null;
+
+                        // Get all categories from both event sources
+                        const categories: string[] = [];
+                        const freeFormCategories = Array.from(this.freeFormEventSource.getCategories());
+                        categories.push(...freeFormCategories);
+                        
+                        // Remove duplicates
+                        const uniqueCategories = Array.from(new Set(categories));
+
+                        return (
+                            <Panel
+                                onDismiss={() => {
+                                    this.isColorPanelOpen.value = false;
+                                    this.tempColorMap = new Map();
+                                }}
+                                titleProps={{ text: "Event Colors" }}
+                                description="Customize colors for event categories"
+                                className="color-settings-panel"
+                                footerButtonProps={[
+                                    {
+                                        text: "Cancel",
+                                        onClick: () => {
+                                            this.isColorPanelOpen.value = false;
+                                            this.tempColorMap = new Map();
+                                        }
+                                    },
+                                    {
+                                        text: "Save",
+                                        primary: true,
+                                        onClick: () => {
+                                            // Merge temp colors into existing map instead of replacing
+                                            const newColorMap = new Map(this.eventColorMap.value);
+                                            this.tempColorMap.forEach((value, key) => {
+                                                newColorMap.set(key, value);
+                                            });
+                                            this.eventColorMap.value = newColorMap;
+                                            this.saveColorSettings();
+                                            this.isColorPanelOpen.value = false;
+                                            this.tempColorMap = new Map();
+                                            // Refresh calendar
+                                            if (this.calendarComponentRef.current) {
+                                                this.getCalendarApi().refetchEvents();
+                                            }
+                                        }
+                                    }
+                                ]}
+                            >
+                                <div className="color-settings-content">
+                                    {uniqueCategories.length === 0 ? (
+                                        <div style={{ padding: "16px", textAlign: "center", color: "var(--text-secondary-color)" }}>
+                                            No event categories yet. Add events to customize their colors.
+                                        </div>
+                                    ) : (
+                                        uniqueCategories.map(category => {
+                                            const currentColor = this.tempColorMap.has(category)
+                                                ? this.tempColorMap.get(category)
+                                                : (props.eventColorMap.get(category) || this.getDefaultColor(category));
+
+                                            return (
+                                                <div key={category} style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                                                    <div style={{ flex: "0 0 120px", fontWeight: 500 }}>
+                                                        {category}
+                                                    </div>
+                                                    <TextField
+                                                        value={currentColor}
+                                                        onChange={(e, newValue) => {
+                                                            this.tempColorMap.set(category, newValue);
+                                                            // Force re-render
+                                                            this.forceUpdate();
+                                                        }}
+                                                        placeholder="#3b82f6"
+                                                    />
+                                                    <div
+                                                        className="color-preview-swatch"
+                                                        style={{
+                                                            backgroundColor: currentColor
+                                                        }}
+                                                        onClick={() => {
+                                                            const colorInput = document.getElementById(`color-picker-${category}`) as HTMLInputElement;
+                                                            if (colorInput) {
+                                                                colorInput.click();
+                                                            }
+                                                        }}
+                                                        title="Click to open color picker"
+                                                    >
+                                                        <input
+                                                            id={`color-picker-${category}`}
+                                                            type="color"
+                                                            value={currentColor}
+                                                            onChange={(e) => {
+                                                                this.tempColorMap.set(category, e.target.value);
+                                                                this.forceUpdate();
+                                                            }}
+                                                            style={{
+                                                                opacity: 0,
+                                                                position: "absolute",
+                                                                width: "100%",
+                                                                height: "100%",
+                                                                cursor: "pointer"
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        text="Reset"
+                                                        subtle
+                                                        onClick={() => {
+                                                            this.tempColorMap.set(category, this.getDefaultColor(category));
+                                                            this.forceUpdate();
+                                                        }}
+                                                    />
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </Panel>
+                        );
                     }}
                 </Observer>
                 <Observer dialog={this.openDialog}>
@@ -264,6 +545,10 @@ class ExtensionContent extends React.Component {
                         ) : null;
                     }}
                 </Observer>
+                            </>
+                        );
+                    }}
+                </Observer>
             </Page>
         );
     }
@@ -287,7 +572,18 @@ class ExtensionContent extends React.Component {
      * Edits the rendered event if required
      */
     private eventRender = (arg: { isMirror: boolean; isStart: boolean; isEnd: boolean; event: EventApi; el: HTMLElement; view: View }) => {
+        // Apply custom colors based on category
+        const category = arg.event.extendedProps?.category;
+        if (category && this.eventColorMap.value.has(category)) {
+            const customColor = this.eventColorMap.value.get(category);
+            arg.el.style.backgroundColor = customColor!;
+            arg.el.style.borderColor = customColor!;
+        }
+
         if (arg.event.id.startsWith(DaysOffId) && arg.event.start) {
+            // Add days-off class for styling
+            arg.el.classList.add('fc-days-off-event');
+            
             // get grouped event for that date
             const capacityEvent = this.vsoCapacityEventSource.getGroupedEventForDate(arg.event.start);
             if (capacityEvent && capacityEvent.icons) {
@@ -309,10 +605,55 @@ class ExtensionContent extends React.Component {
                     }
                 });
             }
+            
+            // Make the entire days-off event clickable
+            arg.el.style.cursor = 'pointer';
+            arg.el.onclick = () => {
+                const capacityEvent = this.vsoCapacityEventSource.getGroupedEventForDate(arg.event.start!);
+                if (capacityEvent && capacityEvent.icons && capacityEvent.icons.length > 0) {
+                    this.eventToEdit = capacityEvent.icons[0].linkedEvent;
+                    this.openDialog.value = Dialogs.NewDaysOffDialog;
+                }
+            };
         } else if (arg.event.id.startsWith(IterationId) && arg.isStart) {
             // iterations are background event, show title for only start
-            arg.el.innerText = arg.event.title;
-            arg.el.style.color = "black";
+            // Create a span element to hold the text
+            const textSpan = document.createElement('span');
+            textSpan.innerText = arg.event.title;
+            textSpan.classList.add('sprint-label');
+            
+            // Detect theme using browser's prefers-color-scheme
+            const isDarkTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Dark mode: white text on dark background
+            // Light mode: black text on white background
+            const textColor = isDarkTheme ? '#ffffff' : '#000000';
+            const bgColor = isDarkTheme ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)';
+            
+            textSpan.style.cssText = `
+                color: ${textColor} !important;
+                font-weight: 700 !important;
+                font-size: 13px !important;
+                padding: 4px 8px !important;
+                display: block !important;
+                position: absolute !important;
+                top: 3px !important;
+                left: 6px !important;
+                z-index: 10 !important;
+                opacity: 1 !important;
+                line-height: normal !important;
+                pointer-events: none !important;
+                white-space: nowrap !important;
+                background: ${bgColor} !important;
+                border-radius: 3px !important;
+            `;
+            
+            // Make parent td positioned relative
+            arg.el.style.position = 'relative';
+            
+            // Clear any existing content and append the span
+            arg.el.innerHTML = '';
+            arg.el.appendChild(textSpan);
         }
     };
 
@@ -326,21 +667,75 @@ class ExtensionContent extends React.Component {
     private getCalendarHeight(): number {
         var height = document.getElementById("team-calendar");
         if (height) {
-            return height.offsetHeight - 90;
+            return height.offsetHeight - 150;
         }
         return 200;
+    }
+
+    private getDefaultColor(category: string): string {
+        // Return default colors for known categories
+        const defaultColors: { [key: string]: string } = {
+            "Days Off": "#ff6b6b",
+            "Iteration": "#4dabf7",
+            "Uncategorized": "#868e96"
+        };
+
+        if (defaultColors[category]) {
+            return defaultColors[category];
+        }
+
+        // For custom categories, generate a color based on the category name
+        // This ensures consistent colors for the same category
+        return generateColor(category);
+    }
+
+    private async loadColorSettings() {
+        if (!this.dataManager) return;
+
+        try {
+            const colorData = await this.dataManager.getValue<{ [key: string]: string }>("eventColors");
+            if (colorData) {
+                const colorMap = new Map<string, string>();
+                for (const key in colorData) {
+                    if (colorData.hasOwnProperty(key)) {
+                        colorMap.set(key, colorData[key]);
+                    }
+                }
+                this.eventColorMap.value = colorMap;
+            }
+        } catch (error) {
+            // No saved colors yet, use defaults
+            console.log("No saved color settings found, using defaults");
+        }
+    }
+
+    private async saveColorSettings() {
+        if (!this.dataManager) return;
+
+        try {
+            const colorData: { [key: string]: string } = {};
+            this.eventColorMap.value.forEach((value, key) => {
+                colorData[key] = value;
+            });
+            await this.dataManager.setValue("eventColors", colorData);
+        } catch (error) {
+            console.error("Failed to save color settings:", error);
+        }
     }
 
     private getMonthPickerOptions(): IListBoxItem[] {
         const options: IListBoxItem[] = [];
         const listSize = 3;
+        const currentMonth = this.currentMonthAndYear.value;
         for (let i = -listSize; i <= listSize; ++i) {
             const monthAndYear = this.calcMonths(this.currentMonthAndYear.value, i);
             const text = monthAndYearToString(monthAndYear);
+            const isCurrent = i === 0;
             options.push({
                 data: monthAndYear,
                 id: text,
-                text: text
+                text: text,
+                iconProps: isCurrent ? { iconName: "Calendar" } : undefined
             });
         }
         return options;
@@ -421,11 +816,15 @@ class ExtensionContent extends React.Component {
             
             const preloadPromises = [
                 this.freeFormEventSource.preloadCurrentMonthEvents(),
-                this.vsoCapacityEventSource.preloadCurrentIterations()
+                this.vsoCapacityEventSource.preloadCurrentIterations(),
+                this.loadColorSettings()
             ];
-            
-            await Promise.all(preloadPromises);
-            
+            try {
+                await Promise.all(preloadPromises);
+            } catch (error) {
+                console.error("Error preloading data:", error);
+            }
+
             this.displayCalendar.value = true;
             this.dataManager.setValue<string>("selected-team-" + project.id, selectedTeamId, { scopeType: "User" });
             this.teams.value = allTeams;
@@ -455,6 +854,40 @@ class ExtensionContent extends React.Component {
 
     private onDialogDismiss = () => {
         this.openDialog.value = Dialogs.None;
+    };
+
+    private onEditDaysOff = (event: ICalendarEvent) => {
+        this.eventToEdit = event;
+        this.openDialog.value = Dialogs.NewDaysOffDialog;
+    };
+
+    private onEditFreeFormEvent = (eventId: string) => {
+        if (!eventId) {
+            console.error("Event ID is undefined");
+            return;
+        }
+        
+        const event = this.freeFormEventSource.eventMap[eventId];
+        if (!event) {
+            console.error("Event not found in eventMap:", eventId);
+            return;
+        }
+        
+        if (!this.calendarComponentRef.current) {
+            console.error("Calendar component ref is not available");
+            return;
+        }
+        
+        const calendarApi = this.getCalendarApi();
+        const calendarEvent = calendarApi.getEventById(FreeFormId + "." + eventId);
+        if (calendarEvent) {
+            this.eventApi = calendarEvent;
+            this.selectedStartDate = calendarEvent.start || new Date();
+            this.selectedEndDate = calendarEvent.end ? new Date(calendarEvent.end.getTime() - 86400000) : this.selectedStartDate;
+            this.openDialog.value = Dialogs.NewEventDialog;
+        } else {
+            console.error("Calendar event not found:", FreeFormId + "." + eventId);
+        }
     };
 
     private onEventClick = (arg: { el: HTMLElement; event: EventApi; jsEvent: MouseEvent; view: View }) => {
@@ -538,6 +971,13 @@ class ExtensionContent extends React.Component {
         this.selectedStartDate = arg.start;
         const dataDate = formatDate(this.selectedEndDate, "YYYY-MM-DD");
         this.anchorElement.value = document.querySelector("td.fc-day-top[data-date='" + dataDate + "']") as HTMLElement;
+        
+        // Prevent calendar from collapsing when context menu opens
+        setTimeout(() => {
+            if (this.calendarComponentRef.current) {
+                this.calendarComponentRef.current.getApi().updateSize();
+            }
+        }, 10);
     };
 
     private onSelectMonthYear = (event: React.SyntheticEvent<HTMLElement, Event>, item: IListBoxItem<{}>) => {

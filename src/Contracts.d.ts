@@ -94,6 +94,21 @@ export interface IEventCategory {
      * Title of the event category
      */
     title: string;
+
+    /**
+     * URL to navigate to when clicked (for iterations)
+     */
+    url?: string;
+
+    /**
+     * Linked event for editing (for days off and events)
+     */
+    linkedEvent?: ICalendarEvent;
+
+    /**
+     * All events in this category (for categories with multiple events)
+     */
+    linkedEvents?: ICalendarEvent[];
 }
 
 /**
