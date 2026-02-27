@@ -68,13 +68,13 @@
     "azure-devops-extension-sdk": "^2.0.11",
     "azure-devops-ui": "~1.159.0",
     "moment": "^2.29.4",
-    "react": "~16.8.1",
+    "react": "~16.14.0",
     "react-datepicker": "^4.25.0",
-    "react-dom": "~16.8.1"
+    "react-dom": "~16.14.0"
   },
   "devDependencies": {
-    "@types/react": "~16.8.2",
-    "@types/react-dom": "~16.8.0",
+    "@types/react": "~16.14.0",
+    "@types/react-dom": "~16.9.0",
     "base64-inline-loader": "^2.0.1",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.2.4",
